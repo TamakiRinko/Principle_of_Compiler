@@ -1879,5 +1879,5 @@ yyreturn:
 
 
 int yyerror(char* msg){
-    fprintf(stderr, "error: %s\n", msg);
+    fprintf(stderr, "Error type B at line %d:  %s\n", yylineno,  msg);
 }

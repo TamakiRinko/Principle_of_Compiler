@@ -37,34 +37,35 @@ WHILE while
 
 BLANK [ \t]
 %%
-{INT} {printf("INT, value = %d\n", (int)(strtol(yytext,NULL,10))); return INT;}
-{FLOAT} {printf("FLOAT, value = %f\n", atof(yytext)); return FLOAT;}
-{SEMI} {printf("SEMI\n"); return SEMI;}
-{COMMA} {printf("COMMA\n"); return COMMA;}
-{ASSIGNOP} {printf("ASSIGNOP\n"); return ASSIGNOP;}
-{RELOP} {printf("RELOP, type = %s\n", yytext); return RELOP;}
-{PLUS} {printf("PLUS\n"); return PLUS;}
-{MINUS} {printf("MINUS\n"); return MINUS;}
-{STAR} {printf("STAR\n"); return STAR;}
-{DIV} {printf("DIV\n"); return DIV;}
-{AND} {printf("AND\n"); return AND;}
-{OR} {printf("OR\n"); return OR;}
-{DOT} {printf("DOT\n"); return DOT;}
-{NOT} {printf("NOT\n"); return NOT;}
-{TYPE} {printf("TYPE, name = %s\n", yytext); return TYPE;}
-{LP} {printf("LP\n"); return LP;}
-{RP} {printf("RP\n"); return RP;}
-{LB} {printf("LB\n"); return LB;}
-{RB} {printf("RB\n"); return RB;}
-{LC} {printf("LC\n"); return LC;}
-{RC} {printf("RC\n"); return RC;}
-{STRUCT} {printf("STRUCT\n"); return STRUCT;}
-{RETURN} {printf("RETURN\n"); return RETURN;}
-{IF} {printf("IF\n"); return IF;}
-{ELSE} {printf("ELSE\n"); return ELSE;}
-{WHILE} {printf("WHILE\n"); return WHILE;}
-{ID} {printf("ID, name = %s\n", yytext); return ID;}
+{INT} {return INT;}
+{FLOAT} {return FLOAT;}
+{SEMI} {return SEMI;}
+{COMMA} {return COMMA;}
+{ASSIGNOP} {return ASSIGNOP;}
+{RELOP} {return RELOP;}
+{PLUS} {return PLUS;}
+{MINUS} {return MINUS;}
+{STAR} {return STAR;}
+{DIV} {return DIV;}
+{AND} {return AND;}
+{OR} {return OR;}
+{DOT} {return DOT;}
+{NOT} {return NOT;}
+{TYPE} {return TYPE;}
+{LP} {return LP;}
+{RP} {return RP;}
+{LB} {return LB;}
+{RB} {return RB;}
+{LC} {return LC;}
+{RC} {return RC;}
+{STRUCT} {return STRUCT;}
+{RETURN} {return RETURN;}
+{IF} {return IF;}
+{ELSE} {return ELSE;}
+{WHILE} {return WHILE;}
+{ID} {return ID;}
 
 {BLANK}+ {}
+\n {}
 . {printf("Error type A at line %d: Mysterious charactor %s\n", yylineno, yytext);}
 %%

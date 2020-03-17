@@ -1,6 +1,7 @@
 #include <stdio.h>
 extern void yyrestart(FILE * input_file );
 extern int yyparse();
+extern int yylineno;
 
 int main(int argc, char** argv){
     if(argc < 2){                           //stdin
@@ -13,6 +14,7 @@ int main(int argc, char** argv){
             return 1;
         }
         yyrestart(f);
+        yylineno = 1;
         yyparse();
         fclose(f);
     }
