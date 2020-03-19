@@ -1,7 +1,10 @@
 #include <stdio.h>
+#include "treeNode.h"
 extern void yyrestart(FILE * input_file );
 extern int yyparse();
 extern int yylineno;
+extern treeNode* root;
+extern int haveError;
 
 int main(int argc, char** argv){
     if(argc < 2){                           //stdin
@@ -17,6 +20,9 @@ int main(int argc, char** argv){
         yylineno = 1;
         yyparse();
         fclose(f);
+        if(!haveError){
+            printNode(root, root->lineno);
+        }
     }
     return 0;
 }

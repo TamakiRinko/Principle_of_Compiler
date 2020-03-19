@@ -545,7 +545,10 @@ char *yytext;
 #line 2 "lexical.l"
     #include<stdio.h>
     #include "syntax.tab.h"
-#line 549 "lex.yy.c"
+    #include "treeNode.h"
+
+    int haveError = 0;
+#line 552 "lex.yy.c"
 
 #define INITIAL 0
 
@@ -763,9 +766,9 @@ YY_DECL
 		}
 
 	{
-#line 39 "lexical.l"
+#line 42 "lexical.l"
 
-#line 769 "lex.yy.c"
+#line 772 "lex.yy.c"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -834,161 +837,161 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 40 "lexical.l"
-{return INT;}
+#line 43 "lexical.l"
+{yylval.treeNode = initLexical("INT", yytext, yylineno);return INT;}
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 41 "lexical.l"
-{return FLOAT;}
+#line 44 "lexical.l"
+{yylval.treeNode = initLexical("FLOAT", yytext, yylineno);return FLOAT;}
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 42 "lexical.l"
-{return SEMI;}
+#line 45 "lexical.l"
+{yylval.treeNode = initLexical("SEMI", yytext, yylineno);return SEMI;}
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 43 "lexical.l"
-{return COMMA;}
+#line 46 "lexical.l"
+{yylval.treeNode = initLexical("COMMA", yytext, yylineno);return COMMA;}
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 44 "lexical.l"
-{return ASSIGNOP;}
+#line 47 "lexical.l"
+{yylval.treeNode = initLexical("ASSIGNOP", yytext, yylineno);return ASSIGNOP;}
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 45 "lexical.l"
-{return RELOP;}
+#line 48 "lexical.l"
+{yylval.treeNode = initLexical("RELOP", yytext, yylineno);return RELOP;}
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 46 "lexical.l"
-{return PLUS;}
+#line 49 "lexical.l"
+{yylval.treeNode = initLexical("PLUS", yytext, yylineno);return PLUS;}
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 47 "lexical.l"
-{return MINUS;}
+#line 50 "lexical.l"
+{yylval.treeNode = initLexical("MINUS", yytext, yylineno);return MINUS;}
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 48 "lexical.l"
-{return STAR;}
+#line 51 "lexical.l"
+{yylval.treeNode = initLexical("STAR", yytext, yylineno);return STAR;}
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 49 "lexical.l"
-{return DIV;}
+#line 52 "lexical.l"
+{yylval.treeNode = initLexical("DIV", yytext, yylineno);return DIV;}
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 50 "lexical.l"
-{return AND;}
+#line 53 "lexical.l"
+{yylval.treeNode = initLexical("AND", yytext, yylineno);return AND;}
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 51 "lexical.l"
-{return OR;}
+#line 54 "lexical.l"
+{yylval.treeNode = initLexical("OR", yytext, yylineno);return OR;}
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 52 "lexical.l"
-{return DOT;}
+#line 55 "lexical.l"
+{yylval.treeNode = initLexical("DOT", yytext, yylineno);return DOT;}
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 53 "lexical.l"
-{return NOT;}
+#line 56 "lexical.l"
+{yylval.treeNode = initLexical("NOT", yytext, yylineno);return NOT;}
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 54 "lexical.l"
-{return TYPE;}
+#line 57 "lexical.l"
+{yylval.treeNode = initLexical("TYPE", yytext, yylineno);return TYPE;}
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 55 "lexical.l"
-{return LP;}
+#line 58 "lexical.l"
+{yylval.treeNode = initLexical("LP", yytext, yylineno);return LP;}
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 56 "lexical.l"
-{return RP;}
+#line 59 "lexical.l"
+{yylval.treeNode = initLexical("RP", yytext, yylineno);return RP;}
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 57 "lexical.l"
-{return LB;}
+#line 60 "lexical.l"
+{yylval.treeNode = initLexical("LB", yytext, yylineno);return LB;}
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 58 "lexical.l"
-{return RB;}
+#line 61 "lexical.l"
+{yylval.treeNode = initLexical("RB", yytext, yylineno);return RB;}
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 59 "lexical.l"
-{return LC;}
+#line 62 "lexical.l"
+{yylval.treeNode = initLexical("LC", yytext, yylineno);return LC;}
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 60 "lexical.l"
-{return RC;}
+#line 63 "lexical.l"
+{yylval.treeNode = initLexical("RC", yytext, yylineno);return RC;}
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 61 "lexical.l"
-{return STRUCT;}
+#line 64 "lexical.l"
+{yylval.treeNode = initLexical("STRUCT", yytext, yylineno);return STRUCT;}
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 62 "lexical.l"
-{return RETURN;}
+#line 65 "lexical.l"
+{yylval.treeNode = initLexical("RETURN", yytext, yylineno);return RETURN;}
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 63 "lexical.l"
-{return IF;}
+#line 66 "lexical.l"
+{yylval.treeNode = initLexical("IF", yytext, yylineno);return IF;}
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 64 "lexical.l"
-{return ELSE;}
+#line 67 "lexical.l"
+{yylval.treeNode = initLexical("ELSE", yytext, yylineno);return ELSE;}
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 65 "lexical.l"
-{return WHILE;}
+#line 68 "lexical.l"
+{yylval.treeNode = initLexical("WHILE", yytext, yylineno);return WHILE;}
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 66 "lexical.l"
-{return ID;}
+#line 69 "lexical.l"
+{yylval.treeNode = initLexical("ID", yytext, yylineno);return ID;}
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 68 "lexical.l"
+#line 71 "lexical.l"
 {}
 	YY_BREAK
 case 29:
 /* rule 29 can match eol */
 YY_RULE_SETUP
-#line 69 "lexical.l"
+#line 72 "lexical.l"
 {}
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 70 "lexical.l"
+#line 73 "lexical.l"
 {printf("Error type A at line %d: Mysterious charactor %s\n", yylineno, yytext);}
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 71 "lexical.l"
+#line 74 "lexical.l"
 ECHO;
 	YY_BREAK
-#line 992 "lex.yy.c"
+#line 995 "lex.yy.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -2001,7 +2004,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 71 "lexical.l"
+#line 74 "lexical.l"
 
 
 
