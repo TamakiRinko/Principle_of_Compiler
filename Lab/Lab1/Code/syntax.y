@@ -141,5 +141,6 @@ Args: Exp COMMA Args {$$ = initSyntax("Args"); buildTree($$, 3, $1, $2, $3);}
 %%
 
 int yyerror(char* msg){
+    haveError = 1;
     fprintf(stderr, "Error type B at line %d:  %s\n", yylineno,  msg);
 }

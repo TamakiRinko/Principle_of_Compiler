@@ -1,16 +1,3 @@
-状态 63 conflicts: 10 shift/reduce
-状态 64 conflicts: 10 shift/reduce
-状态 91 conflicts: 10 shift/reduce
-状态 92 conflicts: 10 shift/reduce
-状态 93 conflicts: 10 shift/reduce
-状态 94 conflicts: 10 shift/reduce
-状态 95 conflicts: 10 shift/reduce
-状态 96 conflicts: 10 shift/reduce
-状态 97 conflicts: 10 shift/reduce
-状态 98 conflicts: 10 shift/reduce
-状态 107 conflicts: 1 shift/reduce
-
-
 语法
 
     0 $accept: Program $end
@@ -126,54 +113,55 @@ RETURN (281) 28
 IF (282) 29 30
 ELSE (283) 30
 WHILE (284) 31
+LOWER_THAN_ELSE (285)
 
 
 Nonterminals, with rules where they appear
 
-$accept (30)
+$accept (31)
     左： 0
-Program (31)
+Program (32)
     左： 1, 右： 0
-ExtDefList (32)
+ExtDefList (33)
     左： 2 3, 右： 1 2
-ExtDef (33)
+ExtDef (34)
     左： 4 5 6, 右： 2
-ExtDecList (34)
+ExtDecList (35)
     左： 7 8, 右： 4 8
-Specifier (35)
+Specifier (36)
     左： 9 10, 右： 4 5 6 22 34
-StructSpecifier (36)
+StructSpecifier (37)
     左： 11 12, 右： 10
-OptTag (37)
+OptTag (38)
     左： 13 14, 右： 11
-Tag (38)
+Tag (39)
     左： 15, 右： 12
-VarDec (39)
+VarDec (40)
     左： 16 17, 右： 7 8 17 22 37 38
-FunDec (40)
+FunDec (41)
     左： 18 19, 右： 6
-VarList (41)
+VarList (42)
     左： 20 21, 右： 18 20
-ParamDec (42)
+ParamDec (43)
     左： 22, 右： 20 21
-CompSt (43)
+CompSt (44)
     左： 23, 右： 6 27
-StmtList (44)
+StmtList (45)
     左： 24 25, 右： 23 24
-Stmt (45)
+Stmt (46)
     左： 26 27 28 29 30 31, 右： 24 29 30 31
-DefList (46)
+DefList (47)
     左： 32 33, 右： 11 23 32
-Def (47)
+Def (48)
     左： 34, 右： 32
-DecList (48)
+DecList (49)
     左： 35 36, 右： 34 36
-Dec (49)
+Dec (50)
     左： 37 38, 右： 35 36
-Exp (50)
+Exp (51)
     左： 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56, 右：
     26 28 29 30 31 38 39 40 41 42 43 44 45 46 47 48 49 52 53 57 58
-Args (51)
+Args (52)
     左： 57 58, 右： 50 57
 
 
@@ -842,27 +830,11 @@ State 63
    52    | Exp . LB Exp RB
    53    | Exp . DOT ID
 
-    ASSIGNOP  shift, and go to state 72
-    RELOP     shift, and go to state 73
-    PLUS      shift, and go to state 74
-    MINUS     shift, and go to state 75
-    STAR      shift, and go to state 76
-    DIV       shift, and go to state 77
-    AND       shift, and go to state 78
-    OR        shift, and go to state 79
-    DOT       shift, and go to state 80
-    LB        shift, and go to state 81
+    STAR  shift, and go to state 76
+    DIV   shift, and go to state 77
+    DOT   shift, and go to state 80
+    LB    shift, and go to state 81
 
-    ASSIGNOP  [reduce using rule 48 (Exp)]
-    RELOP     [reduce using rule 48 (Exp)]
-    PLUS      [reduce using rule 48 (Exp)]
-    MINUS     [reduce using rule 48 (Exp)]
-    STAR      [reduce using rule 48 (Exp)]
-    DIV       [reduce using rule 48 (Exp)]
-    AND       [reduce using rule 48 (Exp)]
-    OR        [reduce using rule 48 (Exp)]
-    DOT       [reduce using rule 48 (Exp)]
-    LB        [reduce using rule 48 (Exp)]
     $default  reduce using rule 48 (Exp)
 
 
@@ -880,27 +852,9 @@ State 64
    52    | Exp . LB Exp RB
    53    | Exp . DOT ID
 
-    ASSIGNOP  shift, and go to state 72
-    RELOP     shift, and go to state 73
-    PLUS      shift, and go to state 74
-    MINUS     shift, and go to state 75
-    STAR      shift, and go to state 76
-    DIV       shift, and go to state 77
-    AND       shift, and go to state 78
-    OR        shift, and go to state 79
-    DOT       shift, and go to state 80
-    LB        shift, and go to state 81
+    DOT  shift, and go to state 80
+    LB   shift, and go to state 81
 
-    ASSIGNOP  [reduce using rule 49 (Exp)]
-    RELOP     [reduce using rule 49 (Exp)]
-    PLUS      [reduce using rule 49 (Exp)]
-    MINUS     [reduce using rule 49 (Exp)]
-    STAR      [reduce using rule 49 (Exp)]
-    DIV       [reduce using rule 49 (Exp)]
-    AND       [reduce using rule 49 (Exp)]
-    OR        [reduce using rule 49 (Exp)]
-    DOT       [reduce using rule 49 (Exp)]
-    LB        [reduce using rule 49 (Exp)]
     $default  reduce using rule 49 (Exp)
 
 
@@ -1314,16 +1268,6 @@ State 91
     DOT       shift, and go to state 80
     LB        shift, and go to state 81
 
-    ASSIGNOP  [reduce using rule 39 (Exp)]
-    RELOP     [reduce using rule 39 (Exp)]
-    PLUS      [reduce using rule 39 (Exp)]
-    MINUS     [reduce using rule 39 (Exp)]
-    STAR      [reduce using rule 39 (Exp)]
-    DIV       [reduce using rule 39 (Exp)]
-    AND       [reduce using rule 39 (Exp)]
-    OR        [reduce using rule 39 (Exp)]
-    DOT       [reduce using rule 39 (Exp)]
-    LB        [reduce using rule 39 (Exp)]
     $default  reduce using rule 39 (Exp)
 
 
@@ -1341,27 +1285,13 @@ State 92
    52    | Exp . LB Exp RB
    53    | Exp . DOT ID
 
-    ASSIGNOP  shift, and go to state 72
-    RELOP     shift, and go to state 73
-    PLUS      shift, and go to state 74
-    MINUS     shift, and go to state 75
-    STAR      shift, and go to state 76
-    DIV       shift, and go to state 77
-    AND       shift, and go to state 78
-    OR        shift, and go to state 79
-    DOT       shift, and go to state 80
-    LB        shift, and go to state 81
+    PLUS   shift, and go to state 74
+    MINUS  shift, and go to state 75
+    STAR   shift, and go to state 76
+    DIV    shift, and go to state 77
+    DOT    shift, and go to state 80
+    LB     shift, and go to state 81
 
-    ASSIGNOP  [reduce using rule 42 (Exp)]
-    RELOP     [reduce using rule 42 (Exp)]
-    PLUS      [reduce using rule 42 (Exp)]
-    MINUS     [reduce using rule 42 (Exp)]
-    STAR      [reduce using rule 42 (Exp)]
-    DIV       [reduce using rule 42 (Exp)]
-    AND       [reduce using rule 42 (Exp)]
-    OR        [reduce using rule 42 (Exp)]
-    DOT       [reduce using rule 42 (Exp)]
-    LB        [reduce using rule 42 (Exp)]
     $default  reduce using rule 42 (Exp)
 
 
@@ -1379,27 +1309,11 @@ State 93
    52    | Exp . LB Exp RB
    53    | Exp . DOT ID
 
-    ASSIGNOP  shift, and go to state 72
-    RELOP     shift, and go to state 73
-    PLUS      shift, and go to state 74
-    MINUS     shift, and go to state 75
-    STAR      shift, and go to state 76
-    DIV       shift, and go to state 77
-    AND       shift, and go to state 78
-    OR        shift, and go to state 79
-    DOT       shift, and go to state 80
-    LB        shift, and go to state 81
+    STAR  shift, and go to state 76
+    DIV   shift, and go to state 77
+    DOT   shift, and go to state 80
+    LB    shift, and go to state 81
 
-    ASSIGNOP  [reduce using rule 43 (Exp)]
-    RELOP     [reduce using rule 43 (Exp)]
-    PLUS      [reduce using rule 43 (Exp)]
-    MINUS     [reduce using rule 43 (Exp)]
-    STAR      [reduce using rule 43 (Exp)]
-    DIV       [reduce using rule 43 (Exp)]
-    AND       [reduce using rule 43 (Exp)]
-    OR        [reduce using rule 43 (Exp)]
-    DOT       [reduce using rule 43 (Exp)]
-    LB        [reduce using rule 43 (Exp)]
     $default  reduce using rule 43 (Exp)
 
 
@@ -1417,27 +1331,11 @@ State 94
    52    | Exp . LB Exp RB
    53    | Exp . DOT ID
 
-    ASSIGNOP  shift, and go to state 72
-    RELOP     shift, and go to state 73
-    PLUS      shift, and go to state 74
-    MINUS     shift, and go to state 75
-    STAR      shift, and go to state 76
-    DIV       shift, and go to state 77
-    AND       shift, and go to state 78
-    OR        shift, and go to state 79
-    DOT       shift, and go to state 80
-    LB        shift, and go to state 81
+    STAR  shift, and go to state 76
+    DIV   shift, and go to state 77
+    DOT   shift, and go to state 80
+    LB    shift, and go to state 81
 
-    ASSIGNOP  [reduce using rule 44 (Exp)]
-    RELOP     [reduce using rule 44 (Exp)]
-    PLUS      [reduce using rule 44 (Exp)]
-    MINUS     [reduce using rule 44 (Exp)]
-    STAR      [reduce using rule 44 (Exp)]
-    DIV       [reduce using rule 44 (Exp)]
-    AND       [reduce using rule 44 (Exp)]
-    OR        [reduce using rule 44 (Exp)]
-    DOT       [reduce using rule 44 (Exp)]
-    LB        [reduce using rule 44 (Exp)]
     $default  reduce using rule 44 (Exp)
 
 
@@ -1455,27 +1353,9 @@ State 95
    52    | Exp . LB Exp RB
    53    | Exp . DOT ID
 
-    ASSIGNOP  shift, and go to state 72
-    RELOP     shift, and go to state 73
-    PLUS      shift, and go to state 74
-    MINUS     shift, and go to state 75
-    STAR      shift, and go to state 76
-    DIV       shift, and go to state 77
-    AND       shift, and go to state 78
-    OR        shift, and go to state 79
-    DOT       shift, and go to state 80
-    LB        shift, and go to state 81
+    DOT  shift, and go to state 80
+    LB   shift, and go to state 81
 
-    ASSIGNOP  [reduce using rule 45 (Exp)]
-    RELOP     [reduce using rule 45 (Exp)]
-    PLUS      [reduce using rule 45 (Exp)]
-    MINUS     [reduce using rule 45 (Exp)]
-    STAR      [reduce using rule 45 (Exp)]
-    DIV       [reduce using rule 45 (Exp)]
-    AND       [reduce using rule 45 (Exp)]
-    OR        [reduce using rule 45 (Exp)]
-    DOT       [reduce using rule 45 (Exp)]
-    LB        [reduce using rule 45 (Exp)]
     $default  reduce using rule 45 (Exp)
 
 
@@ -1493,27 +1373,9 @@ State 96
    52    | Exp . LB Exp RB
    53    | Exp . DOT ID
 
-    ASSIGNOP  shift, and go to state 72
-    RELOP     shift, and go to state 73
-    PLUS      shift, and go to state 74
-    MINUS     shift, and go to state 75
-    STAR      shift, and go to state 76
-    DIV       shift, and go to state 77
-    AND       shift, and go to state 78
-    OR        shift, and go to state 79
-    DOT       shift, and go to state 80
-    LB        shift, and go to state 81
+    DOT  shift, and go to state 80
+    LB   shift, and go to state 81
 
-    ASSIGNOP  [reduce using rule 46 (Exp)]
-    RELOP     [reduce using rule 46 (Exp)]
-    PLUS      [reduce using rule 46 (Exp)]
-    MINUS     [reduce using rule 46 (Exp)]
-    STAR      [reduce using rule 46 (Exp)]
-    DIV       [reduce using rule 46 (Exp)]
-    AND       [reduce using rule 46 (Exp)]
-    OR        [reduce using rule 46 (Exp)]
-    DOT       [reduce using rule 46 (Exp)]
-    LB        [reduce using rule 46 (Exp)]
     $default  reduce using rule 46 (Exp)
 
 
@@ -1531,27 +1393,14 @@ State 97
    52    | Exp . LB Exp RB
    53    | Exp . DOT ID
 
-    ASSIGNOP  shift, and go to state 72
-    RELOP     shift, and go to state 73
-    PLUS      shift, and go to state 74
-    MINUS     shift, and go to state 75
-    STAR      shift, and go to state 76
-    DIV       shift, and go to state 77
-    AND       shift, and go to state 78
-    OR        shift, and go to state 79
-    DOT       shift, and go to state 80
-    LB        shift, and go to state 81
+    RELOP  shift, and go to state 73
+    PLUS   shift, and go to state 74
+    MINUS  shift, and go to state 75
+    STAR   shift, and go to state 76
+    DIV    shift, and go to state 77
+    DOT    shift, and go to state 80
+    LB     shift, and go to state 81
 
-    ASSIGNOP  [reduce using rule 40 (Exp)]
-    RELOP     [reduce using rule 40 (Exp)]
-    PLUS      [reduce using rule 40 (Exp)]
-    MINUS     [reduce using rule 40 (Exp)]
-    STAR      [reduce using rule 40 (Exp)]
-    DIV       [reduce using rule 40 (Exp)]
-    AND       [reduce using rule 40 (Exp)]
-    OR        [reduce using rule 40 (Exp)]
-    DOT       [reduce using rule 40 (Exp)]
-    LB        [reduce using rule 40 (Exp)]
     $default  reduce using rule 40 (Exp)
 
 
@@ -1569,27 +1418,15 @@ State 98
    52    | Exp . LB Exp RB
    53    | Exp . DOT ID
 
-    ASSIGNOP  shift, and go to state 72
-    RELOP     shift, and go to state 73
-    PLUS      shift, and go to state 74
-    MINUS     shift, and go to state 75
-    STAR      shift, and go to state 76
-    DIV       shift, and go to state 77
-    AND       shift, and go to state 78
-    OR        shift, and go to state 79
-    DOT       shift, and go to state 80
-    LB        shift, and go to state 81
+    RELOP  shift, and go to state 73
+    PLUS   shift, and go to state 74
+    MINUS  shift, and go to state 75
+    STAR   shift, and go to state 76
+    DIV    shift, and go to state 77
+    AND    shift, and go to state 78
+    DOT    shift, and go to state 80
+    LB     shift, and go to state 81
 
-    ASSIGNOP  [reduce using rule 41 (Exp)]
-    RELOP     [reduce using rule 41 (Exp)]
-    PLUS      [reduce using rule 41 (Exp)]
-    MINUS     [reduce using rule 41 (Exp)]
-    STAR      [reduce using rule 41 (Exp)]
-    DIV       [reduce using rule 41 (Exp)]
-    AND       [reduce using rule 41 (Exp)]
-    OR        [reduce using rule 41 (Exp)]
-    DOT       [reduce using rule 41 (Exp)]
-    LB        [reduce using rule 41 (Exp)]
     $default  reduce using rule 41 (Exp)
 
 
@@ -1711,7 +1548,6 @@ State 107
 
     ELSE  shift, and go to state 109
 
-    ELSE      [reduce using rule 29 (Stmt)]
     $default  reduce using rule 29 (Stmt)
 
 

@@ -21,7 +21,7 @@ int main(int argc, char** argv){
         yyparse();
         fclose(f);
         if(!haveError){
-            printNode(root, root->lineno);
+            printNode(root, 0);
         }
     }
     return 0;

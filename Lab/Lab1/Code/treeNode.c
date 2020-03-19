@@ -23,24 +23,46 @@ treeNode* initSyntax(char* name){
 }
 
 void buildTree(treeNode* parent, int childNum, ...){
+    if(parent == NULL) return;
     if(childNum == 0)    return;
     
     //------------- 可变参数，孩子个数可变 --------------
     va_list valist;
     va_start(valist, childNum);
-    //首孩子，用firstChild标示
-    treeNode* firstChild = va_arg(valist, treeNode*);
-    parent->firstChild = firstChild;
-    parent->lineno = firstChild->lineno;                //父亲的行号为首词素的行号
-    //其他孩子，用nextBrother标示
-    treeNode* end = firstChild;
-    for(int i = 0; i < childNum - 1; ++i){
-        treeNode* child = va_arg(valist, treeNode*);
-        end->nextBrother = child;
-        end = child;
-    }
+    // //首孩子，用firstChild标示
+    // treeNode* firstChild = va_arg(valist, treeNode*);
+    // printf("firstChild's name = %s\n", firstChild->name);
+    // parent->firstChild = firstChild;
+    // parent->lineno = firstChild->lineno;                //父亲的行号为首词素的行号
+    // //其他孩子，用nextBrother标示
+    // treeNode* end = firstChild;
+    // for(int i = 0; i < childNum - 1; ++i){
+    //     treeNode* child = va_arg(valist, treeNode*);
+    //     printf("child's name = %s\n", child->name);
+    //     end->nextBrother = child;
+    //     end = child;
+    // }
+    // va_end(valist);
+
+
+
+    for(int i = 0 ; i < childNum ; i++){
+		treeNode* child = va_arg(valist, treeNode*);
+        if(child == NULL){                              //可能第一个孩子就是NULL
+            continue;
+        }
+		if(parent->firstChild == NULL){
+			parent->lineno = child->lineno;
+			parent->firstChild = child;
+		}
+		else{                                           //可能孩子为NULL
+			treeNode* temp = parent->firstChild;
+			while(temp->nextBrother != NULL)
+				temp = temp->nextBrother;
+			temp->nextBrother = child;
+		}
+	}
     va_end(valist);
-    //-----------------------------------------------
 
 }
 

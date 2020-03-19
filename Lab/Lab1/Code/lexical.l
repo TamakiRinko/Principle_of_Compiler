@@ -11,7 +11,7 @@ DECIMAL 0|[1-9][0-9]*
 OCTAL 0[0-7]+
 HEX 0[xX][0-9a-fA-F]+
 INT {DECIMAL}|{OCTAL}|{HEX}
-FLOAT ([0-9]*\.?[0-9]+|[0-9]+\.)
+FLOAT {DECIMAL}\.[0-9]+
 ID [_a-zA-Z][_a-zA-Z0-9]*
 SEMI ;
 COMMA ,
@@ -38,7 +38,7 @@ IF if
 ELSE else
 WHILE while
 
-BLANK [ \t]
+BLANK [ \t\r]
 %%
 {INT} {yylval.treeNode = initLexical("INT", yytext, yylineno);return INT;}
 {FLOAT} {yylval.treeNode = initLexical("FLOAT", yytext, yylineno);return FLOAT;}
@@ -70,5 +70,5 @@ BLANK [ \t]
 
 {BLANK}+ {}
 \n {}
-. {printf("Error type A at line %d: Mysterious charactor %s\n", yylineno, yytext);}
+. {haveError = 1;printf("Error type A at line %d: Mysterious charactor %s\n", yylineno, yytext);}
 %%
