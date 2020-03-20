@@ -20,6 +20,9 @@ int main(int argc, char** argv){
         yylineno = 1;
         yyparse();
         fclose(f);
+        if(root == NULL){
+            printf("yes\n");
+        }
         if(!haveError){
             printNode(root, 0);
         }

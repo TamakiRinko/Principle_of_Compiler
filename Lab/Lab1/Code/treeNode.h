@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
+// #define PRINT_ALL
+
 enum CELLTYPE{
     Lexical, Syntax
 };  

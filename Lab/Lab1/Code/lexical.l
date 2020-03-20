@@ -4,8 +4,21 @@
     #include "treeNode.h"
 
     int haveError = 0;
+    void lexicalErrorMessage(char* msg);
+
+    int yycolumn = 1;
+
+    #define YY_USER_ACTION \
+    yylloc.first_line = yylloc.last_line = yylineno; \
+    yylloc.first_column = yycolumn; \
+    yylloc.last_column = yycolumn + yyleng - 1; \
+    yycolumn += yyleng;
 %}
 %option yylineno
+
+
+COMMENTONE [/][/][^\n]*
+COMMENTTWO [/][*](.|\n)*?[*][/]
 
 DECIMAL 0|[1-9][0-9]*
 OCTAL 0[0-7]+
@@ -38,6 +51,10 @@ IF if
 ELSE else
 WHILE while
 
+WRONGOCTAL 0[0-9]+
+WRONGHEX 0[xX][0-9a-zA-Z]+
+WRONGID [0-9]+{ID}
+
 BLANK [ \t\r]
 %%
 {INT} {yylval.treeNode = initLexical("INT", yytext, yylineno);return INT;}
@@ -68,7 +85,19 @@ BLANK [ \t\r]
 {WHILE} {yylval.treeNode = initLexical("WHILE", yytext, yylineno);return WHILE;}
 {ID} {yylval.treeNode = initLexical("ID", yytext, yylineno);return ID;}
 
+
+{WRONGOCTAL} {haveError = 1; yylval.treeNode = initLexical("INT", yytext, yylineno); lexicalErrorMessage("Illegal Octal"); return INT;}
+{WRONGHEX} {haveError = 1; yylval.treeNode = initLexical("INT", yytext, yylineno); lexicalErrorMessage("Illegal Hex"); return INT;}
+{WRONGID} {haveError = 1; yylval.treeNode = initLexical("ID", yytext, yylineno); lexicalErrorMessage("Illegal Id"); return ID;}
+
+{COMMENTONE} {haveError = 1; lexicalErrorMessage("comments");}
+{COMMENTTWO} {haveError = 1; lexicalErrorMessage("comments");}
+
 {BLANK}+ {}
-\n {}
+\n {yycolumn = 1;}
 . {haveError = 1;printf("Error type A at line %d: Mysterious charactor %s\n", yylineno, yytext);}
 %%
+
+void lexicalErrorMessage(char* msg){
+    fprintf(stderr, "Error type A at line %d:  %s\n", yylineno,  msg);
+}

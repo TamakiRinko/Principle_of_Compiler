@@ -2,6 +2,10 @@
 
 
 treeNode* initLexical(char* name, char* text, int lineno){
+
+#ifdef PRINT_ALL
+    printf("name = %s, text = %s\n", name, text);
+#endif
     treeNode* temp = (treeNode*)malloc(sizeof(treeNode));
     temp->cellType = Lexical;
     temp->firstChild = temp->nextBrother = NULL;
@@ -25,7 +29,10 @@ treeNode* initSyntax(char* name){
 void buildTree(treeNode* parent, int childNum, ...){
     if(parent == NULL) return;
     if(childNum == 0)    return;
-    
+
+#ifdef PRINT_ALL
+    printf("parent's name = %s, ", parent->name);
+#endif
     //------------- 可变参数，孩子个数可变 --------------
     va_list valist;
     va_start(valist, childNum);
@@ -44,13 +51,17 @@ void buildTree(treeNode* parent, int childNum, ...){
     // }
     // va_end(valist);
 
-
-
+#ifdef PRINT_ALL
+    printf("children's names: ");
+#endif
     for(int i = 0 ; i < childNum ; i++){
 		treeNode* child = va_arg(valist, treeNode*);
         if(child == NULL){                              //可能第一个孩子就是NULL
             continue;
         }
+#ifdef PRINT_ALL
+        printf("%s, %s; ", child->name, child->text);
+#endif
 		if(parent->firstChild == NULL){
 			parent->lineno = child->lineno;
 			parent->firstChild = child;
@@ -63,6 +74,9 @@ void buildTree(treeNode* parent, int childNum, ...){
 		}
 	}
     va_end(valist);
+#ifdef PRINT_ALL
+    printf("\n");
+#endif
 
 }
 
