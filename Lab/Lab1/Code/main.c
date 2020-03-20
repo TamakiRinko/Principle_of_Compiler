@@ -20,11 +20,14 @@ int main(int argc, char** argv){
         yylineno = 1;
         yyparse();
         fclose(f);
-        if(root == NULL){
-            printf("yes\n");
-        }
-        if(!haveError){
+
+        if(haveError == 0 && is_empty == 0)
+        {
             printNode(root, 0);
+        }
+        else if(is_empty == 1)
+        {
+            printf("Program (%d)\n", empty_line_num);
         }
     }
     return 0;

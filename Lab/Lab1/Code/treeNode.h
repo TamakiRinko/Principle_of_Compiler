@@ -41,7 +41,8 @@ typedef struct TreeNode{
         
     // }
 }treeNode;
-
+extern int is_empty;
+extern int empty_line_num;
 treeNode* initLexical(char* name, char* text, int lineno);
 treeNode* initSyntax(char* name);
 void buildTree(treeNode* parent, int childNum, ...);

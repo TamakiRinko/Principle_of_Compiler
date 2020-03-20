@@ -8,6 +8,9 @@
 
     int yycolumn = 1;
 
+    int is_empty = 1;
+	int empty_line_num = 0;
+
     #define YY_USER_ACTION \
     yylloc.first_line = yylloc.last_line = yylineno; \
     yylloc.first_column = yycolumn; \
@@ -94,7 +97,7 @@ BLANK [ \t\r]
 {COMMENTTWO} {haveError = 1; lexicalErrorMessage("comments");}
 
 {BLANK}+ {}
-\n {yycolumn = 1;}
+\n {yycolumn = 1; empty_line_num = empty_line_num + 1;}
 . {haveError = 1;printf("Error type A at line %d: Mysterious charactor %s\n", yylineno, yytext);}
 %%
 

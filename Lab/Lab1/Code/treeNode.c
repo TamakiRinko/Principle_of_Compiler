@@ -6,6 +6,7 @@ treeNode* initLexical(char* name, char* text, int lineno){
 #ifdef PRINT_ALL
     printf("name = %s, text = %s\n", name, text);
 #endif
+    is_empty = 0;
     treeNode* temp = (treeNode*)malloc(sizeof(treeNode));
     temp->cellType = Lexical;
     temp->firstChild = temp->nextBrother = NULL;
