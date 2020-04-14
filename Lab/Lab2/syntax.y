@@ -52,6 +52,7 @@ ExtDefList: ExtDef ExtDefList {$$ = initSyntax("ExtDefList"); buildTree($$, 2, $
 ExtDef: Specifier ExtDecList SEMI {$$ = initSyntax("ExtDef"); buildTree($$, 3, $1, $2, $3);}
 | Specifier SEMI {$$ = initSyntax("ExtDef"); buildTree($$, 2, $1, $2);}
 | Specifier FunDec CompSt {$$ = initSyntax("ExtDef"); buildTree($$, 3, $1, $2, $3);}
+| Specifier FunDec SEMI {$$ = initSyntax("ExtDef"); buildTree($$, 3, $1, $2, $3);}
 | Specifier ExtDecList error {illegalMessage("Specifier ExtDecList error Expecting ;", @2.last_line);}    /*全局变量定义缺少;*/
 | Specifier error {illegalMessage("Specifier error Expecting ;", @1.last_line);}                   /*全局struct定义缺少;*/
 | Specifier error SEMI {illegalMessage("Specifier error SEMI syntax error",@1.last_line);}      /*全局变量定义错误*/
