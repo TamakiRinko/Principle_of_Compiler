@@ -68,7 +68,7 @@ void funDec(treeNode* parent, Type returnType, int isDef);
 void compSt(treeNode* parent, Type type);
 Type structSpecifier(treeNode* parent);
 void varDec(treeNode* parent, Type type);
-FieldList varList(treeNode* parent);
+void varList(treeNode* parent, Type functionType);
 void defList(treeNode* parent);
 void stmtList(treeNode* parent, Type type);
 FieldList structureDefList(treeNode* parent, Type type);                     // 结构体内部定义
@@ -78,3 +78,7 @@ void structureDef(treeNode* parent, Type type);
 void structureDecList(treeNode* parent, Type specifierType, Type structureType);
 void structureDec(treeNode* parent, Type specifierType, Type structureType);
 void structureVarDec(treeNode* parent, Type specifierType, Type structureType);
+void paramDec(treeNode* parent, Type functionType);
+void dec(treeNode* parent, Type specifierType);
+Type exp(treeNode* parent);
+void stmt(treeNode* parent, Type type);

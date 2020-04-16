@@ -54,6 +54,9 @@ unsigned int hash_pjw(char* name){
 }
 
 int isEqual(Type t1, Type t2){
+    if(t1 == NULL || t2 == NULL){
+        return 0;
+    }
     if(t1->kind != t2->kind){
         return 0;
     }
@@ -122,9 +125,9 @@ int insertSymbolTable(Symbol symbol){
                     serror("Structure redefined", symbol->lineno, 16);
                     return 1;
                 }else if(symbol->type->kind != FUNCTION && symbol->type->kind != STRUCTURETYPE && cur->type->kind != FUNCTION){
-                    // serror("Variable redefined", symbol->lineno, 3);
-                    // return 1;
-                    return 3;
+                    serror("Variable redefined", symbol->lineno, 3);
+                    return 1;
+                    // return 3;
                 }
                 return 0;
             }
@@ -229,7 +232,7 @@ void funDec(treeNode* parent, Type returnType, int isDef){
         // FunDec: ID LP RP
     }else{
         // FunDec: ID LP VarList RP
-        funcType->u.function->paramType = varList(parent->firstChild->nextBrother->nextBrother);
+        varList(parent->firstChild->nextBrother->nextBrother, funcType);
         FieldList cur = funcType->u.function->paramType;
         while (cur != NULL){
             funcType->u.function->paramNum++;
@@ -289,11 +292,34 @@ Type structSpecifier(treeNode* parent){
 }
 
 void varDec(treeNode* parent, Type type){
-
+    treeNode* cur = parent->firstChild;
+    char* name = NULL;
+    while(cur){
+        if(strcmp(cur->name, "ID") == 0){
+            name = getStr(cur->text);
+            break;
+        }
+        /*VarDec is array*/
+        Type arrayType = (Type)malloc(sizeof(struct Type_));
+        arrayType->kind = ARRAY;
+        arrayType->u.array.size = atoi(cur->nextBrother->nextBrother->text);
+        arrayType->u.array.elem = type;
+        type = arrayType;
+        cur = cur->firstChild;
+    }
+    Symbol symbol = newSymbol(name, type, parent->firstChild->lineno);
+    insertSymbolTable(symbol);
 }
 
-FieldList varList(treeNode* parent){
-
+void varList(treeNode* parent, Type functionType){
+    if(parent->firstChild->nextBrother == NULL){
+        // VarList: ParamDec
+        paramDec(parent->firstChild, functionType);
+    }else{
+        // VarList: ParamDec COMMA VarList
+        paramDec(parent->firstChild, functionType);
+        varList(parent->firstChild->nextBrother->nextBrother, functionType);
+    }
 }
 
 void defList(treeNode* parent){
@@ -304,7 +330,10 @@ void defList(treeNode* parent){
 }
 
 void stmtList(treeNode* parent, Type type){
-
+    if(parent == NULL)  return;
+    // StmtList: Stmt StmtList
+    stmt(parent->firstChild, type);
+    stmtList(parent->firstChild->nextBrother, type);
 }
 
 FieldList structureDefList(treeNode* parent, Type type){
@@ -323,7 +352,14 @@ void def(treeNode* parent){
 }
 
 void decList(treeNode* parent, Type type){
-
+    if(parent->firstChild->nextBrother == NULL){
+        // DecList: Dec
+        dec(parent->firstChild, type);
+    }else{
+        // DecList: Dec COMMA DecList
+        dec(parent->firstChild, type);
+        decList(parent->firstChild->nextBrother->nextBrother, type);
+    }
 }
 
 void structureDef(treeNode* parent, Type type){
@@ -356,40 +392,11 @@ void structureDec(treeNode* parent, Type specifierType, Type structureType){
 }
 
 void structureVarDec(treeNode* parent, Type specifierType, Type structureType){
-    // if(parent->firstChild->nextBrother == NULL){
-    //     // VarDec: ID
-    //     Symbol symbol = newSymbol(parent->firstChild->text, specifierType, parent->firstChild->lineno);
-    //     FieldList fieldList = (FieldList)malloc(sizeof(struct FieldList_));
-    //     fieldList->name = getStr(parent->firstChild->text);
-    //     fieldList->type = specifierType;
-    //     int flag = 0;
-    //     FieldList cur = structureType->u.structure.fieldList;
-    //     while (cur != NULL){
-    //         if(strcmp(cur->name, fieldList->name) == 0){
-    //             serror("Variable redefined in structure", symbol->lineno, 15);
-    //             flag = 1;
-    //         }
-    //         cur = cur->tail;
-    //     }
-    //     // Insert into fieldList
-    //     fieldList->tail = structureType->u.structure.fieldList;
-    //     structureType->u.structure.fieldList = fieldList;
-    //     // Insert into symbolTable
-    //     if(!flag){
-    //         insertSymbolTable(symbol);
-    //     }
-    // }else{
-    //     // VarDec: VarDec LB INT RB
-    //     Type arrayType = (Type)malloc(sizeof(struct Type_));
-    //     arrayType->kind = ARRAY;
-    //     arrayType->u.array.size = atoi()
-    // }
-
     FieldList fieldList = (FieldList)malloc(sizeof(struct FieldList_));
     fieldList->type = specifierType;
     treeNode* cur = parent->firstChild;
     while(cur){
-        if(!strcmp(cur->name, "ID")){
+        if(strcmp(cur->name, "ID") == 0){
             fieldList->name = cur->text;
             break;
         }
@@ -402,19 +409,77 @@ void structureVarDec(treeNode* parent, Type specifierType, Type structureType){
         cur = cur->firstChild;
     }
     Symbol symbol = newSymbol(fieldList->name, fieldList->type, parent->firstChild->lineno);
-    int flag = 0;
-    FieldList current = structureType->u.structure.fieldList;
-    while (current != NULL){
-        if(strcmp(current->name, fieldList->name) == 0){
-            serror("Variable redefined in structure", symbol->lineno, 15);
-            flag = 1;
+    if(structureType->kind == STRUCTURE){
+        int flag = 0;
+        FieldList current = structureType->u.structure.fieldList;
+        while (current != NULL){
+            if(strcmp(current->name, fieldList->name) == 0){
+                serror("Variable redefined in structure", symbol->lineno, 15);
+                flag = 1;
+            }
+            current = current->tail;
         }
-        current = current->tail;
-    }
-    // Insert into fieldList
-    fieldList->tail = structureType->u.structure.fieldList;
-    structureType->u.structure.fieldList = fieldList;
-    if(!flag){
+        // Insert into fieldList
+        fieldList->tail = structureType->u.structure.fieldList;
+        structureType->u.structure.fieldList = fieldList;
+        if(!flag){
+            insertSymbolTable(symbol);
+        }
+    }else if(structureType->kind == FUNCTION){
+        // Insert into fieldList
+        fieldList->tail = structureType->u.structure.fieldList;
+        structureType->u.structure.fieldList = fieldList;
         insertSymbolTable(symbol);
+    }
+    
+}
+
+void paramDec(treeNode* parent, Type functionType){
+    Type specifierType = specifier(parent->firstChild);
+    if(specifierType == NULL)   return;
+    structureVarDec(parent->firstChild->nextBrother, specifierType, functionType);
+}
+
+void dec(treeNode* parent, Type specifierType){
+    if(parent->firstChild->nextBrother == NULL){
+        // Dec: VarDec
+        varDec(parent->firstChild, specifierType);
+    }else{
+        // Dec: VarDec ASSIGNOP Exp
+        varDec(parent->firstChild, specifierType);
+        Type expType = exp(parent->firstChild->nextBrother->nextBrother);
+        if(expType == NULL) return;
+        if(isEqual(expType, specifierType) == 0){
+            serror("Mismatch type during ASSIGNOP", parent->firstChild->lineno, 5);
+        }
+    }
+}
+
+Type exp(treeNode* parent){
+    
+}
+
+void stmt(treeNode* parent, Type type){
+    if(strcmp(parent->firstChild->name, "Exp") == 0){
+        // Stmt: Exp SEMI
+        exp(parent->firstChild);
+    }else if(strcmp(parent->firstChild->name, "CompSt") == 0){
+        // Stmt: CompSt
+        compSt(parent->firstChild, type);
+    }else if(strcmp(parent->firstChild->name, "RETURN") == 0){
+        // Stmt: RETURN Exp SEMI
+        Type expType = exp(parent->firstChild->nextBrother);
+        if(expType == NULL) return;
+        if(isEqual(expType, type) == 0){
+            serror("Mismatch Return type", parent->firstChild->lineno, 8);
+        }
+    }else{
+        // Stmt: IF/WHILE
+        exp(parent->firstChild->nextBrother->nextBrother);
+        stmt(parent->firstChild->nextBrother->nextBrother->nextBrother->nextBrother, type);
+        // Stmt: IF LP Exp RP Stmt ELSE Stmt
+        if(parent->firstChild->nextBrother->nextBrother->nextBrother->nextBrother->nextBrother != NULL){
+            stmt(parent->firstChild->nextBrother->nextBrother->nextBrother->nextBrother->nextBrother->nextBrother, type);
+        }
     }
 }
