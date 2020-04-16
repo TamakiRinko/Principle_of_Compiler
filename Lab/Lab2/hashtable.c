@@ -11,6 +11,39 @@ Symbol newSymbol(char* name, Type type, int lineno){
     return symbol;
 }
 
+// 获得一个字符串
+char* getStr(char* str){
+    char* str1 = (char*)malloc(strlen(str) + 1);
+    strcpy(str1, str);
+    return str1;
+}
+
+// 获得结构体变量类型
+Type getStructureType(char* name){
+    unsigned int hashCode = hash_pjw(name);
+    Symbol cur = symbolTable[hashCode];
+    while (cur != NULL){
+        if(strcmp(cur->name, name) == 0){
+            Type variableType = (Type)malloc(sizeof(struct Type_));
+            variableType->kind = STRUCTURE;
+            variableType->u.structure.fieldList = cur->type->u.structure.fieldList;
+            variableType->u.structure.name = getStr(cur->type->u.structure.name);
+            return variableType;
+        }
+        cur = cur->next;
+    }
+    return NULL;
+}
+
+// 获得匿名名称
+char* getAnonymousName(){
+    char* name = (char* )malloc(32);
+    memset(name, '\0', 32);
+    itoa(structureId, name, 10);
+    structureId++;
+    return name;
+}
+
 unsigned int hash_pjw(char* name){
     unsigned int val = 0, i;
     for (; *name; ++name){
@@ -76,15 +109,24 @@ int insertSymbolTable(Symbol symbol){
             if(strcmp(cur->name, symbol->name) == 0){           // 重名错误
                 if(cur->type->kind == FUNCTION && symbol->type->kind == FUNCTION){
                     if(!isEqual(cur->type, symbol->type)){                                                          // 类型不同
-                        return 19;
+                        serror("Inconsistent declaration of function", symbol->lineno, 19);
+                        return 1;
                     }else if(cur->type->u.function->isDefined == 0 && symbol->type->u.function->isDefined == 1){    // 先声明后定义
                         cur->type->u.function->isDefined = 1;
                         return 0;
                     }else if(cur->type->u.function->isDefined == 1 && symbol->type->u.function->isDefined == 1){    // 两次定义
-                        return 4;
+                        serror("Function redefined", symbol->lineno, 4);
+                        return 1;
                     }
+                }else if(symbol->type->kind == STRUCTURETYPE && cur->type->kind != FUNCTION){
+                    serror("Structure redefined", symbol->lineno, 16);
+                    return 1;
+                }else if(symbol->type->kind != FUNCTION && symbol->type->kind != STRUCTURETYPE && cur->type->kind != FUNCTION){
+                    // serror("Variable redefined", symbol->lineno, 3);
+                    // return 1;
+                    return 3;
                 }
-                return 3;
+                return 0;
             }
             cur = cur->next;
         }
@@ -198,11 +240,52 @@ void funDec(treeNode* parent, Type returnType, int isDef){
 }
 
 void compSt(treeNode* parent, Type type){
-
+    if(parent == NULL)  return;
+    // CompSt: LC DefList StmtList RC
+    if(strcmp(parent->firstChild->nextBrother->name, "DefList") == 0){
+        defList(parent->firstChild->nextBrother);
+        if(strcmp(parent->firstChild->nextBrother->nextBrother->name, "StmtList") == 0){
+            stmtList(parent->firstChild->nextBrother->nextBrother, type); 
+        }
+    }else if(strcmp(parent->firstChild->nextBrother->name, "StmtList") == 0){
+        stmtList(parent->firstChild->nextBrother, type);
+    }
 }
 
 Type structSpecifier(treeNode* parent){
 
+    Type structureType = (Type)malloc(sizeof(struct Type_));                        // 结构体类型表项
+    structureType->kind = STRUCTURETYPE;
+    structureType->u.structure.fieldList = NULL;
+
+    Type variableType = (Type)malloc(sizeof(struct Type_));                         // 结构体变量表项
+    variableType->kind = STRUCTURE;
+
+    // Type variableType;
+
+    if(strcmp(parent->firstChild->nextBrother->name, "OptTag") == 0){
+        // StructSpecifier: STRUCT OptTag LC DefList RC
+        structureType->u.structure.name = getStr(parent->firstChild->nextBrother->firstChild->text);
+        structureDefList(parent->firstChild->nextBrother->nextBrother->nextBrother, structureType);
+        variableType->u = structureType->u;
+    }else if(strcmp(parent->firstChild->nextBrother->name, "LC") == 0){
+        // StructSpecifier: STRUCT LC DefList RC
+        structureType->u.structure.name = getAnonymousName();
+        structureDefList(parent->firstChild->nextBrother->nextBrother, structureType);
+        variableType->u = structureType->u;
+    }else{
+        // StructureSpecifier: STRUCTURE Tag
+        variableType = getStructureType(parent->firstChild->nextBrother->firstChild->text);
+        if(variableType == NULL){
+            serror("Undefined Structure", parent->firstChild->lineno, 17);
+        }
+        return variableType;
+        // variableType->u.structure.fieldList = NULL;
+        // return variableType;
+    }
+    Symbol structure = newSymbol(structureType->u.structure.name, structureType, parent->firstChild->lineno);
+    insertSymbolTable(structure);
+    return variableType;
 }
 
 void varDec(treeNode* parent, Type type){
@@ -211,4 +294,127 @@ void varDec(treeNode* parent, Type type){
 
 FieldList varList(treeNode* parent){
 
+}
+
+void defList(treeNode* parent){
+    if(parent == NULL)  return;
+    // DefList: Def DefList
+    def(parent->firstChild);
+    defList(parent->firstChild->nextBrother);
+}
+
+void stmtList(treeNode* parent, Type type){
+
+}
+
+FieldList structureDefList(treeNode* parent, Type type){
+    //TODO: 
+    if(parent == NULL)  return;
+    // DefList: Def DefList
+    structureDef(parent->firstChild, type);
+    structureDefList(parent->firstChild->nextBrother, type);
+}
+
+void def(treeNode* parent){
+    // Def: Specifier DecList SEMI
+    Type type = specifier(parent->firstChild);
+    if(type == NULL)    return;
+    decList(parent->firstChild->nextBrother, type);
+}
+
+void decList(treeNode* parent, Type type){
+
+}
+
+void structureDef(treeNode* parent, Type type){
+    // Def: Specifier DecList SEMI
+    Type specifierType = specifier(parent->firstChild);
+    if(specifierType == NULL)    return;
+    structureDecList(parent->firstChild->nextBrother, specifierType, type);
+}
+
+void structureDecList(treeNode* parent, Type specifierType, Type structureType){
+    if(parent->firstChild->nextBrother == NULL){
+        // DecList: Dec
+        structureDec(parent->firstChild, specifierType, structureType);
+    }else{
+        // DecList: Dec COMMA DecList
+        structureDec(parent->firstChild, specifierType, structureType);
+        structureDecList(parent->firstChild->nextBrother->nextBrother, specifierType, structureType);
+    }
+}
+
+void structureDec(treeNode* parent, Type specifierType, Type structureType){
+    if(parent->firstChild->nextBrother == NULL){
+        // Dec: VarDec
+        structureVarDec(parent->firstChild, specifierType, structureType);
+    }else{
+        // Dec: VarDec ASSIGNOP Exp
+        serror("Initialization during definition", parent->lineno, 15);
+        structureVarDec(parent->firstChild, specifierType, structureType);
+    }
+}
+
+void structureVarDec(treeNode* parent, Type specifierType, Type structureType){
+    // if(parent->firstChild->nextBrother == NULL){
+    //     // VarDec: ID
+    //     Symbol symbol = newSymbol(parent->firstChild->text, specifierType, parent->firstChild->lineno);
+    //     FieldList fieldList = (FieldList)malloc(sizeof(struct FieldList_));
+    //     fieldList->name = getStr(parent->firstChild->text);
+    //     fieldList->type = specifierType;
+    //     int flag = 0;
+    //     FieldList cur = structureType->u.structure.fieldList;
+    //     while (cur != NULL){
+    //         if(strcmp(cur->name, fieldList->name) == 0){
+    //             serror("Variable redefined in structure", symbol->lineno, 15);
+    //             flag = 1;
+    //         }
+    //         cur = cur->tail;
+    //     }
+    //     // Insert into fieldList
+    //     fieldList->tail = structureType->u.structure.fieldList;
+    //     structureType->u.structure.fieldList = fieldList;
+    //     // Insert into symbolTable
+    //     if(!flag){
+    //         insertSymbolTable(symbol);
+    //     }
+    // }else{
+    //     // VarDec: VarDec LB INT RB
+    //     Type arrayType = (Type)malloc(sizeof(struct Type_));
+    //     arrayType->kind = ARRAY;
+    //     arrayType->u.array.size = atoi()
+    // }
+
+    FieldList fieldList = (FieldList)malloc(sizeof(struct FieldList_));
+    fieldList->type = specifierType;
+    treeNode* cur = parent->firstChild;
+    while(cur){
+        if(!strcmp(cur->name, "ID")){
+            fieldList->name = cur->text;
+            break;
+        }
+        /*VarDec is array*/
+        Type arrayType = (Type)malloc(sizeof(struct Type_));
+        arrayType->kind = ARRAY;
+        arrayType->u.array.size = atoi(cur->nextBrother->nextBrother->text);
+        arrayType->u.array.elem = fieldList->type;
+        fieldList->type = arrayType;
+        cur = cur->firstChild;
+    }
+    Symbol symbol = newSymbol(fieldList->name, fieldList->type, parent->firstChild->lineno);
+    int flag = 0;
+    FieldList current = structureType->u.structure.fieldList;
+    while (current != NULL){
+        if(strcmp(current->name, fieldList->name) == 0){
+            serror("Variable redefined in structure", symbol->lineno, 15);
+            flag = 1;
+        }
+        current = current->tail;
+    }
+    // Insert into fieldList
+    fieldList->tail = structureType->u.structure.fieldList;
+    structureType->u.structure.fieldList = fieldList;
+    if(!flag){
+        insertSymbolTable(symbol);
+    }
 }
