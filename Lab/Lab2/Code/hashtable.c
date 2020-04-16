@@ -1,18 +1,23 @@
 #include "hashtable.h"
 
-Symbol symbolTable[TABLE_NUM];
-
 Symbol newSymbol(char* name, Type type, int lineno){
+#ifdef print_lab_2
+    printf("newSymbol\n");
+#endif
     Symbol symbol = (Symbol)malloc(sizeof(struct Symbol_));
     symbol->name = (char*)malloc(strlen(name) + 1);
     strcpy(symbol->name, name);
     symbol->type = type;
     symbol->lineno = lineno;
+    symbol->next = NULL;
     return symbol;
 }
 
 // 获得一个字符串
 char* getStr(char* str){
+#ifdef print_lab_2
+    printf("getStr\n");
+#endif
     char* str1 = (char*)malloc(strlen(str) + 1);
     strcpy(str1, str);
     return str1;
@@ -20,6 +25,9 @@ char* getStr(char* str){
 
 // 获得结构体变量类型
 Type getStructureType(char* name){
+#ifdef print_lab_2
+    printf("getStructureType\n");
+#endif
     unsigned int hashCode = hash_pjw(name);
     Symbol cur = symbolTable[hashCode];
     while (cur != NULL){
@@ -36,10 +44,30 @@ Type getStructureType(char* name){
 }
 
 Type getIDType(char* name){
+#ifdef print_lab_2
+    printf("getIDType\n");
+#endif
+    // printf("name = %s\n", name);
     unsigned int hashCode = hash_pjw(name);
     Symbol cur = symbolTable[hashCode];
     while (cur != NULL){
-        if(strcmp(cur->name, name) == 0){
+        // printf("cur->name = %s\n", cur->name);
+        if(strcmp(cur->name, name) == 0 && cur->type->kind != STRUCTURETYPE && cur->type->kind != FUNCTION){
+            return cur->type;
+        }
+        cur = cur->next;
+    }
+    return NULL;
+}
+
+Type getFuncType(char* name){
+#ifdef print_lab_2
+    printf("getFuncType\n");
+#endif
+    unsigned int hashCode = hash_pjw(name);
+    Symbol cur = symbolTable[hashCode];
+    while (cur != NULL){
+        if(strcmp(cur->name, name) == 0 && cur->type->kind != STRUCTURETYPE){
             return cur->type;
         }
         cur = cur->next;
@@ -48,6 +76,9 @@ Type getIDType(char* name){
 }
 
 int isRightValue(treeNode* parent){
+#ifdef print_lab_2
+    printf("isRightValue\n");
+#endif
     if(strcmp(parent->firstChild->name, "ID") == 0 && parent->firstChild->nextBrother == NULL){
         // Exp: ID
         return 0;
@@ -66,23 +97,33 @@ int isRightValue(treeNode* parent){
 
 // 获得匿名名称
 char* getAnonymousName(){
+#ifdef print_lab_2
+    printf("getAnonymousName\n");
+#endif
     char* name = (char* )malloc(32);
     memset(name, '\0', 32);
-    itoa(structureId, name, 10);
+    // itoa(structureId, name, 10);
+    sprintf(name, "%d", structureId);
     structureId++;
     return name;
 }
 
 unsigned int hash_pjw(char* name){
+#ifdef print_lab_2
+    printf("hash_pjw\n");
+#endif
     unsigned int val = 0, i;
     for (; *name; ++name){
         val = (val << 2) + *name;
-        if (i = val & ~0x3fff) val = (val ^ (i >> 12)) & TABLE_NUM;
+        if (i = val & ~TABLE_NUM) val = (val ^ (i >> 12)) & TABLE_NUM;
     }
     return val;
 }
 
 int isEqual(Type t1, Type t2){
+#ifdef print_lab_2
+    printf("isEqual\n");
+#endif
     if(t1 == NULL || t2 == NULL){
         return 0;
     }
@@ -91,6 +132,7 @@ int isEqual(Type t1, Type t2){
     }
     switch(t1->kind){
         case BASIC:{
+            // printf("t1->u.basic = %d, t2->u.basic = %d\n", t1->u.basic, t2->u.basic);
             return t1->u.basic == t2->u.basic;
         }
         case ARRAY:{
@@ -126,13 +168,25 @@ int isEqual(Type t1, Type t2){
 }
 
 void initSymbolTable(){
+#ifdef print_lab_2
+    printf("initSymbolTable\n");
+#endif
     for(int i = 0; i < TABLE_NUM; ++i){
         symbolTable[i] = NULL;
     }
 }
 
 int insertSymbolTable(Symbol symbol){
+#ifdef print_lab_2
+    printf("insertSymbolTable\n");
+#endif
+#ifdef print_lab_2
+    printf("line = %d, name = %s\n", symbol->lineno, symbol->name);
+#endif
     unsigned int hashCode = hash_pjw(symbol->name);
+#ifdef print_lab_2
+    printf("hashcode = %d\n", hashCode);
+#endif
     if(symbolTable[hashCode] == NULL){
         symbolTable[hashCode] = symbol;
     }else{
@@ -140,15 +194,15 @@ int insertSymbolTable(Symbol symbol){
         while (cur != NULL){
             if(strcmp(cur->name, symbol->name) == 0){           // 重名错误
                 if(cur->type->kind == FUNCTION && symbol->type->kind == FUNCTION){
-                    if(!isEqual(cur->type, symbol->type)){                                                          // 类型不同
+                    if(cur->type->u.function->isDefined == 1 && symbol->type->u.function->isDefined == 1){          // 两次定义
+                        serror("Function redefined", symbol->lineno, 4);
+                        return 1;
+                    }else if(isEqual(cur->type, symbol->type) == 0){                                                // 类型不同
                         serror("Inconsistent declaration of function", symbol->lineno, 19);
                         return 1;
                     }else if(cur->type->u.function->isDefined == 0 && symbol->type->u.function->isDefined == 1){    // 先声明后定义
                         cur->type->u.function->isDefined = 1;
                         return 0;
-                    }else if(cur->type->u.function->isDefined == 1 && symbol->type->u.function->isDefined == 1){    // 两次定义
-                        serror("Function redefined", symbol->lineno, 4);
-                        return 1;
                     }
                 }else if(symbol->type->kind == STRUCTURETYPE && cur->type->kind != FUNCTION){
                     serror("Structure redefined", symbol->lineno, 16);
@@ -173,6 +227,9 @@ void serror(char* msg, int line, int errorType){
 }
 
 void checkDef(){
+#ifdef print_lab_2
+    printf("checkDef\n");
+#endif
     for(int i = 0; i < TABLE_NUM; ++i){
         Symbol cur = symbolTable[i];
         while (cur != NULL){
@@ -185,6 +242,11 @@ void checkDef(){
 }
 
 void program(treeNode* root){
+    structureId = 1;
+    // printf("%d\n", structureId);
+#ifdef print_lab_2
+    printf("program\n");
+#endif
     if(root->firstChild != NULL){
         extDefList(root->firstChild);
         checkDef();
@@ -192,6 +254,9 @@ void program(treeNode* root){
 }
 
 void extDefList(treeNode* parent){
+#ifdef print_lab_2
+    printf("extDefList\n");
+#endif
     if(parent == NULL || parent->firstChild == NULL)    return;
     // ExtDefList: ExtDef ExtDefList
     extDef(parent->firstChild);
@@ -199,6 +264,9 @@ void extDefList(treeNode* parent){
 }
 
 void extDef(treeNode* parent){
+#ifdef print_lab_2
+    printf("extDef\n");
+#endif
     if(parent == NULL)    return;
     Type type = specifier(parent->firstChild);
     if(strcmp(parent->firstChild->nextBrother->name, "SEMI") == 0){
@@ -217,12 +285,15 @@ void extDef(treeNode* parent){
 }
 
 Type specifier(treeNode* parent){
-    if(parent == NULL)  return;
+#ifdef print_lab_2
+    printf("specifier\n");
+#endif
+    if(parent == NULL)  return NULL;
     if(strcmp(parent->firstChild->name, "TYPE") == 0){
         // Specifier: TYPE
         Type type = (Type)malloc(sizeof(struct Type_));
         type->kind = BASIC;
-        if(strcmp(parent->firstChild->text, "INT") == 0){
+        if(strcmp(parent->firstChild->text, "int") == 0){
             type->u.basic = INT;
         }else{
             type->u.basic = FLOAT;
@@ -235,6 +306,9 @@ Type specifier(treeNode* parent){
 }
 
 void extDecList(treeNode* parent, Type type){
+#ifdef print_lab_2
+    printf("extDecList\n");
+#endif
     if(parent == NULL)  return;
     if(parent->firstChild->nextBrother == NULL){
         // ExtDecList: VarDec
@@ -247,6 +321,9 @@ void extDecList(treeNode* parent, Type type){
 }
 
 void funDec(treeNode* parent, Type returnType, int isDef){
+#ifdef print_lab_2
+    printf("funDec\n");
+#endif
     if(parent == NULL)  return;
     Type funcType = (Type)malloc(sizeof(struct Type_));
     funcType->kind = FUNCTION;
@@ -272,6 +349,9 @@ void funDec(treeNode* parent, Type returnType, int isDef){
 }
 
 void compSt(treeNode* parent, Type type){
+#ifdef print_lab_2
+    printf("compSt\n");
+#endif
     if(parent == NULL)  return;
     // CompSt: LC DefList StmtList RC
     if(strcmp(parent->firstChild->nextBrother->name, "DefList") == 0){
@@ -285,7 +365,9 @@ void compSt(treeNode* parent, Type type){
 }
 
 Type structSpecifier(treeNode* parent){
-
+#ifdef print_lab_2
+    printf("structSpecifier\n");
+#endif
     Type structureType = (Type)malloc(sizeof(struct Type_));                        // 结构体类型表项
     structureType->kind = STRUCTURETYPE;
     structureType->u.structure.fieldList = NULL;
@@ -321,6 +403,9 @@ Type structSpecifier(treeNode* parent){
 }
 
 void varDec(treeNode* parent, Type type){
+#ifdef print_lab_2
+    printf("varDec\n");
+#endif
     treeNode* cur = parent->firstChild;
     char* name = NULL;
     while(cur){
@@ -341,6 +426,9 @@ void varDec(treeNode* parent, Type type){
 }
 
 void varList(treeNode* parent, Type functionType){
+#ifdef print_lab_2
+    printf("varList\n");
+#endif
     if(parent->firstChild->nextBrother == NULL){
         // VarList: ParamDec
         paramDec(parent->firstChild, functionType);
@@ -352,6 +440,9 @@ void varList(treeNode* parent, Type functionType){
 }
 
 void defList(treeNode* parent){
+#ifdef print_lab_2
+    printf("defList\n");
+#endif
     if(parent == NULL)  return;
     // DefList: Def DefList
     def(parent->firstChild);
@@ -359,6 +450,9 @@ void defList(treeNode* parent){
 }
 
 void stmtList(treeNode* parent, Type type){
+#ifdef print_lab_2
+    printf("stmtList\n");
+#endif
     if(parent == NULL)  return;
     // StmtList: Stmt StmtList
     stmt(parent->firstChild, type);
@@ -366,14 +460,20 @@ void stmtList(treeNode* parent, Type type){
 }
 
 FieldList structureDefList(treeNode* parent, Type type){
+#ifdef print_lab_2
+    printf("structureDefList\n");
+#endif
     //TODO: 
-    if(parent == NULL)  return;
+    if(parent == NULL)  return NULL;
     // DefList: Def DefList
     structureDef(parent->firstChild, type);
     structureDefList(parent->firstChild->nextBrother, type);
 }
 
 void def(treeNode* parent){
+#ifdef print_lab_2
+    printf("def\n");
+#endif
     // Def: Specifier DecList SEMI
     Type type = specifier(parent->firstChild);
     if(type == NULL)    return;
@@ -381,6 +481,9 @@ void def(treeNode* parent){
 }
 
 void decList(treeNode* parent, Type type){
+#ifdef print_lab_2
+    printf("decList\n");
+#endif
     if(parent->firstChild->nextBrother == NULL){
         // DecList: Dec
         dec(parent->firstChild, type);
@@ -392,6 +495,9 @@ void decList(treeNode* parent, Type type){
 }
 
 void structureDef(treeNode* parent, Type type){
+#ifdef print_lab_2
+    printf("structureDef\n");
+#endif
     // Def: Specifier DecList SEMI
     Type specifierType = specifier(parent->firstChild);
     if(specifierType == NULL)    return;
@@ -399,6 +505,9 @@ void structureDef(treeNode* parent, Type type){
 }
 
 void structureDecList(treeNode* parent, Type specifierType, Type structureType){
+#ifdef print_lab_2
+    printf("structureDecList\n");
+#endif
     if(parent->firstChild->nextBrother == NULL){
         // DecList: Dec
         structureDec(parent->firstChild, specifierType, structureType);
@@ -410,6 +519,9 @@ void structureDecList(treeNode* parent, Type specifierType, Type structureType){
 }
 
 void structureDec(treeNode* parent, Type specifierType, Type structureType){
+#ifdef print_lab_2
+    printf("structureDec\n");
+#endif
     if(parent->firstChild->nextBrother == NULL){
         // Dec: VarDec
         structureVarDec(parent->firstChild, specifierType, structureType);
@@ -421,12 +533,18 @@ void structureDec(treeNode* parent, Type specifierType, Type structureType){
 }
 
 void structureVarDec(treeNode* parent, Type specifierType, Type structureType){
+#ifdef print_lab_2
+    printf("structureVarDec\n");
+#endif
     FieldList fieldList = (FieldList)malloc(sizeof(struct FieldList_));
     fieldList->type = specifierType;
     treeNode* cur = parent->firstChild;
-    while(cur){
+    while(cur != NULL){
         if(strcmp(cur->name, "ID") == 0){
-            fieldList->name = cur->text;
+            fieldList->name = getStr(cur->text);
+#ifdef print_lab_2
+            printf("cur->text = %s, ", cur->text);
+#endif
             break;
         }
         /*VarDec is array*/
@@ -437,8 +555,11 @@ void structureVarDec(treeNode* parent, Type specifierType, Type structureType){
         fieldList->type = arrayType;
         cur = cur->firstChild;
     }
+#ifdef print_lab_2
+    printf("fieldList->type->kind = %d\n", fieldList->type->kind);
+#endif
     Symbol symbol = newSymbol(fieldList->name, fieldList->type, parent->firstChild->lineno);
-    if(structureType->kind == STRUCTURE){
+    if(structureType->kind == STRUCTURETYPE){
         int flag = 0;
         FieldList current = structureType->u.structure.fieldList;
         while (current != NULL){
@@ -456,35 +577,44 @@ void structureVarDec(treeNode* parent, Type specifierType, Type structureType){
         }
     }else if(structureType->kind == FUNCTION){
         // Insert into fieldList
-        fieldList->tail = structureType->u.structure.fieldList;
-        structureType->u.structure.fieldList = fieldList;
+        fieldList->tail = structureType->u.function->paramType;
+        structureType->u.function->paramType = fieldList;
         insertSymbolTable(symbol);
     }
     
 }
 
 void paramDec(treeNode* parent, Type functionType){
+#ifdef print_lab_2
+    printf("paramDec\n");
+#endif
     Type specifierType = specifier(parent->firstChild);
     if(specifierType == NULL)   return;
     structureVarDec(parent->firstChild->nextBrother, specifierType, functionType);
 }
 
 void dec(treeNode* parent, Type specifierType){
+#ifdef print_lab_2
+    printf("dec\n");
+#endif
     if(parent->firstChild->nextBrother == NULL){
         // Dec: VarDec
         varDec(parent->firstChild, specifierType);
     }else{
         // Dec: VarDec ASSIGNOP Exp
         varDec(parent->firstChild, specifierType);
-        Type expType = exp(parent->firstChild->nextBrother->nextBrother);
+        Type expType = Exp(parent->firstChild->nextBrother->nextBrother);
         if(expType == NULL) return;                 // int x = a + b
         if(isEqual(expType, specifierType) == 0){
-            serror("Mismatch type during ASSIGNOP", parent->firstChild->lineno, 5);
+            serror("Mismatch type between ASSIGNOP", parent->firstChild->lineno, 5);
         }
     }
 }
 
-Type exp(treeNode* parent){
+Type Exp(treeNode* parent){
+#ifdef print_lab_2
+    printf("Exp\n");
+#endif
     Type expType = (Type)malloc(sizeof(struct Type_));
     if(strcmp(parent->firstChild->name, "ID") == 0 && parent->firstChild->nextBrother == NULL){
         // Exp: ID
@@ -505,8 +635,8 @@ Type exp(treeNode* parent){
         return expType;
     }else if(strcmp(parent->firstChild->name, "Exp") == 0){
         if(strcmp(parent->firstChild->nextBrother->nextBrother->name, "Exp") == 0){
-            Type type1 = exp(parent->firstChild);
-            Type type2 = exp(parent->firstChild->nextBrother->nextBrother);
+            Type type1 = Exp(parent->firstChild);
+            Type type2 = Exp(parent->firstChild->nextBrother->nextBrother);
             if(type1 == NULL || type2 == NULL)  return NULL;
             if(strcmp(parent->firstChild->nextBrother->name, "LB") != 0){
                 if(strcmp(parent->firstChild->nextBrother->name, "ASSIGNOP") == 0){
@@ -548,7 +678,7 @@ Type exp(treeNode* parent){
                 }
             }else{
                 // Exp: Exp LB Exp RB
-                if(type1->kind != STRUCTURE){
+                if(type1->kind != ARRAY){
                     serror("NOT ARRAY Variable", parent->firstChild->lineno, 10);
                     return NULL;
                 }else if(type2->kind != BASIC || (type2->kind == BASIC && type2->u.basic != INT)){
@@ -559,15 +689,18 @@ Type exp(treeNode* parent){
             }
         }else{
             // Exp: Exp DOT ID
-            Type type1 = exp(parent->firstChild);
+            Type type1 = Exp(parent->firstChild);
             if(type1 == NULL)   return NULL;
             if(type1->kind != STRUCTURE){
                 serror("NOT STRUCTURE Variable", parent->firstChild->lineno, 13);
                 return NULL;
             }else{
                 FieldList fieldList = type1->u.structure.fieldList;
+                if(fieldList == NULL){
+                    printf("null!\n");
+                }
                 while(fieldList != NULL){
-                    if(strcmp(fieldList->name, parent->firstChild->nextBrother->nextBrother->text)){
+                    if(strcmp(fieldList->name, parent->firstChild->nextBrother->nextBrother->text) == 0){
                         return fieldList->type;
                     }
                     fieldList = fieldList->tail;
@@ -578,7 +711,7 @@ Type exp(treeNode* parent){
         }
     }else if(strcmp(parent->firstChild->name, "MINUS") == 0){
         // Exp: MINUS Exp
-        Type type = exp(parent->firstChild->nextBrother);
+        Type type = Exp(parent->firstChild->nextBrother);
         if(type == NULL)    return NULL;
         if(type->kind != BASIC){
             serror("Wrong type, need INT OR FLOAT", parent->firstChild->nextBrother->lineno, 7);
@@ -587,7 +720,7 @@ Type exp(treeNode* parent){
         return type;
     }else if(strcmp(parent->firstChild->name, "NOT") == 0){
         // Exp: NOT Exp
-        Type type = exp(parent->firstChild->nextBrother);
+        Type type = Exp(parent->firstChild->nextBrother);
         if(type == NULL)    return NULL;
         if(type->kind != BASIC || (type->kind == BASIC && type->u.basic != INT)){
             serror("Wrong type, need INT", parent->firstChild->nextBrother->lineno, 7);
@@ -596,10 +729,10 @@ Type exp(treeNode* parent){
         return type;
     }else if(strcmp(parent->firstChild->name, "LP") == 0){
         // Exp: LP Exp RP
-        return exp(parent->firstChild->nextBrother);
+        return Exp(parent->firstChild->nextBrother);
     }else{
         // Exp: ID LP (Args) RP
-        Type type = getIDType(parent->firstChild->text);
+        Type type = getFuncType(parent->firstChild->text);
         if(type == NULL){
             serror("Undefined function used", parent->firstChild->lineno, 2);
             return NULL;
@@ -619,22 +752,25 @@ Type exp(treeNode* parent){
 }
 
 void stmt(treeNode* parent, Type type){
+#ifdef print_lab_2
+    printf("stmt\n");
+#endif
     if(strcmp(parent->firstChild->name, "Exp") == 0){
         // Stmt: Exp SEMI
-        exp(parent->firstChild);
+        Exp(parent->firstChild);
     }else if(strcmp(parent->firstChild->name, "CompSt") == 0){
         // Stmt: CompSt
         compSt(parent->firstChild, type);
     }else if(strcmp(parent->firstChild->name, "RETURN") == 0){
         // Stmt: RETURN Exp SEMI
-        Type expType = exp(parent->firstChild->nextBrother);
+        Type expType = Exp(parent->firstChild->nextBrother);
         if(expType == NULL) return;
         if(isEqual(expType, type) == 0){
             serror("Mismatch Return type", parent->firstChild->lineno, 8);
         }
     }else{
         // Stmt: IF/WHILE
-        exp(parent->firstChild->nextBrother->nextBrother);
+        Exp(parent->firstChild->nextBrother->nextBrother);
         stmt(parent->firstChild->nextBrother->nextBrother->nextBrother->nextBrother, type);
         // Stmt: IF LP Exp RP Stmt ELSE Stmt
         if(parent->firstChild->nextBrother->nextBrother->nextBrother->nextBrother->nextBrother != NULL){
@@ -644,13 +780,16 @@ void stmt(treeNode* parent, Type type){
 }
 
 int Args(treeNode* parent, Type type){
+#ifdef print_lab_2
+    printf("Args\n");
+#endif
     FieldList fieldList1 = type->u.function->paramType;
     FieldList fieldList2 = NULL;
 
     treeNode* cur = parent->firstChild;
     while(cur != NULL){
         FieldList temp = (FieldList)malloc(sizeof(struct FieldList_));
-        temp->type = exp(cur);
+        temp->type = Exp(cur);
         temp->tail = fieldList2;
         fieldList2 = temp;
         if(cur->nextBrother != NULL){

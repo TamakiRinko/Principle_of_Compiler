@@ -1,6 +1,10 @@
+#ifndef HASHTABLE_H_
+#define HASHTABLE_H_
+
 #include <stdio.h>
 #include <string.h>
 #include "treeNode.h"
+// #define print_lab_2
 #define TABLE_NUM 1024
 
 typedef struct Type_* Type;
@@ -10,7 +14,9 @@ typedef struct Symbol_* Symbol;
 
 enum Kind { BASIC, ARRAY, STRUCTURE, FUNCTION, STRUCTURETYPE };
 
-int structureId = 1;
+int structureId;
+
+Symbol symbolTable[TABLE_NUM];
 
 struct Type_{
     enum Kind kind;
@@ -47,6 +53,9 @@ struct Symbol_{
     Symbol next;            // 指向下一个节点的指针
 };
 
+unsigned int hash_pjw(char* name);
+char* getAnonymousName();
+
 Symbol newSymbol(char* name, Type type, int lineno);
 char* getStr(char* str);
 Type getStructureType(char* name);                                  // 根据STRUCTURETYPE获得STRUCTURE
@@ -81,6 +90,8 @@ void structureDec(treeNode* parent, Type specifierType, Type structureType);
 void structureVarDec(treeNode* parent, Type specifierType, Type structureType);
 void paramDec(treeNode* parent, Type functionType);
 void dec(treeNode* parent, Type specifierType);
-Type exp(treeNode* parent);
+Type Exp(treeNode* parent);
 void stmt(treeNode* parent, Type type);
 int Args(treeNode* parent, Type type);
+
+#endif
