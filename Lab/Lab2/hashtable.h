@@ -10,8 +10,6 @@ typedef struct Symbol_* Symbol;
 
 enum Kind { BASIC, ARRAY, STRUCTURE, FUNCTION, STRUCTURETYPE };
 
-int isEqual(Type t1, Type t2);                                      // 比较Type是否相等
-
 int structureId = 1;
 
 struct Type_{
@@ -51,8 +49,11 @@ struct Symbol_{
 
 Symbol newSymbol(char* name, Type type, int lineno);
 char* getStr(char* str);
-Type getStructureType(char* name);
+Type getStructureType(char* name);                                  // 根据STRUCTURETYPE获得STRUCTURE
+Type getIDType(char* name);                                         // 获得ID的TYPE
+int isRightValue(treeNode* parent);
 
+int isEqual(Type t1, Type t2);                                      // 比较Type是否相等
 void initSymbolTable();
 int insertSymbolTable(Symbol symbol);
 void serror(char* msg, int line, int errorType);
@@ -82,3 +83,4 @@ void paramDec(treeNode* parent, Type functionType);
 void dec(treeNode* parent, Type specifierType);
 Type exp(treeNode* parent);
 void stmt(treeNode* parent, Type type);
+int Args(treeNode* parent, Type type);

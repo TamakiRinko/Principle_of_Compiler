@@ -35,6 +35,35 @@ Type getStructureType(char* name){
     return NULL;
 }
 
+Type getIDType(char* name){
+    unsigned int hashCode = hash_pjw(name);
+    Symbol cur = symbolTable[hashCode];
+    while (cur != NULL){
+        if(strcmp(cur->name, name) == 0){
+            return cur->type;
+        }
+        cur = cur->next;
+    }
+    return NULL;
+}
+
+int isRightValue(treeNode* parent){
+    if(strcmp(parent->firstChild->name, "ID") == 0 && parent->firstChild->nextBrother == NULL){
+        // Exp: ID
+        return 0;
+    }else if(strcmp(parent->firstChild->name, "LP") == 0){
+        // Exp: LP Exp RP
+        return isRightValue(parent->firstChild->nextBrother);
+    }else if(strcmp(parent->firstChild->name, "Exp") == 0 && strcmp(parent->firstChild->nextBrother->name, "DOT") == 0){
+        // Exp: Exp DOT ID
+        return 0;
+    }else if(strcmp(parent->firstChild->name, "Exp") == 0 && strcmp(parent->firstChild->nextBrother->name, "LB") == 0){
+        // Exp: Exp LB Exp RB
+        return 0;
+    }
+    return 1;
+}
+
 // 获得匿名名称
 char* getAnonymousName(){
     char* name = (char* )malloc(32);
@@ -448,7 +477,7 @@ void dec(treeNode* parent, Type specifierType){
         // Dec: VarDec ASSIGNOP Exp
         varDec(parent->firstChild, specifierType);
         Type expType = exp(parent->firstChild->nextBrother->nextBrother);
-        if(expType == NULL) return;
+        if(expType == NULL) return;                 // int x = a + b
         if(isEqual(expType, specifierType) == 0){
             serror("Mismatch type during ASSIGNOP", parent->firstChild->lineno, 5);
         }
@@ -456,7 +485,137 @@ void dec(treeNode* parent, Type specifierType){
 }
 
 Type exp(treeNode* parent){
-    
+    Type expType = (Type)malloc(sizeof(struct Type_));
+    if(strcmp(parent->firstChild->name, "ID") == 0 && parent->firstChild->nextBrother == NULL){
+        // Exp: ID
+        Type type = getIDType(parent->firstChild->text);
+        if(type == NULL){
+            serror("Variable used without definition", parent->lineno, 1);
+        }
+        return type;
+    }else if(strcmp(parent->firstChild->name, "INT") == 0){
+        // Exp: INT
+        expType->kind = BASIC;
+        expType->u.basic = INT;
+        return expType;
+    }else if(strcmp(parent->firstChild->name, "FLOAT") == 0){
+        // Exp: FLOAT
+        expType->kind = BASIC;
+        expType->u.basic = FLOAT;
+        return expType;
+    }else if(strcmp(parent->firstChild->name, "Exp") == 0){
+        if(strcmp(parent->firstChild->nextBrother->nextBrother->name, "Exp") == 0){
+            Type type1 = exp(parent->firstChild);
+            Type type2 = exp(parent->firstChild->nextBrother->nextBrother);
+            if(type1 == NULL || type2 == NULL)  return NULL;
+            if(strcmp(parent->firstChild->nextBrother->name, "LB") != 0){
+                if(strcmp(parent->firstChild->nextBrother->name, "ASSIGNOP") == 0){
+                    if(isRightValue(parent->firstChild)){
+                        serror("Right value at right of assignment", parent->lineno, 6);
+                        return NULL;
+                    }
+                    if(isEqual(type1, type2) == 0){
+                        serror("Mismatch type between ASSIGNOP", parent->firstChild->lineno, 5);
+                        return NULL;
+                    }  
+                    return type2;
+                }
+                // Exp: Exp operator Exp
+                if(isEqual(type1, type2) == 0){
+                    serror("Mismatch type between operator", parent->firstChild->lineno, 7);
+                    return NULL;
+                }else{
+                    if(strcmp(parent->firstChild->nextBrother->name, "AND") == 0 || 
+                        strcmp(parent->firstChild->nextBrother->name, "OR") == 0 || 
+                        strcmp(parent->firstChild->nextBrother->name, "RELOP") == 0){
+                        if(type2->kind != BASIC || (type2->kind == BASIC && type2->u.basic != INT)){
+                            serror("Wrong type, need INT", parent->firstChild->lineno, 7);
+                            return NULL;
+                        }else if(type1->kind != BASIC || (type1->kind == BASIC && type1->u.basic != INT)){
+                            serror("Wrong type, need INT", parent->firstChild->lineno, 7);
+                            return NULL;
+                        }
+                        // 逻辑运算，类型为整形
+                        return type1;
+                    }else{
+                        // 加减乘除，类型不变
+                        if(type1->kind != BASIC || type2->kind != BASIC){
+                            serror("Wrong type, need INT OR FLOAT", parent->firstChild->lineno, 7);
+                            return NULL;
+                        }
+                        return type1;
+                    }
+                }
+            }else{
+                // Exp: Exp LB Exp RB
+                if(type1->kind != STRUCTURE){
+                    serror("NOT ARRAY Variable", parent->firstChild->lineno, 10);
+                    return NULL;
+                }else if(type2->kind != BASIC || (type2->kind == BASIC && type2->u.basic != INT)){
+                    serror("NOT INT IN [...]", parent->firstChild->lineno, 12);
+                    return NULL;
+                }
+                return type1->u.array.elem;
+            }
+        }else{
+            // Exp: Exp DOT ID
+            Type type1 = exp(parent->firstChild);
+            if(type1 == NULL)   return NULL;
+            if(type1->kind != STRUCTURE){
+                serror("NOT STRUCTURE Variable", parent->firstChild->lineno, 13);
+                return NULL;
+            }else{
+                FieldList fieldList = type1->u.structure.fieldList;
+                while(fieldList != NULL){
+                    if(strcmp(fieldList->name, parent->firstChild->nextBrother->nextBrother->text)){
+                        return fieldList->type;
+                    }
+                    fieldList = fieldList->tail;
+                }
+                serror("Undefined variable in STRUCTURE", parent->firstChild->nextBrother->nextBrother->lineno, 14);
+                return NULL;
+            }
+        }
+    }else if(strcmp(parent->firstChild->name, "MINUS") == 0){
+        // Exp: MINUS Exp
+        Type type = exp(parent->firstChild->nextBrother);
+        if(type == NULL)    return NULL;
+        if(type->kind != BASIC){
+            serror("Wrong type, need INT OR FLOAT", parent->firstChild->nextBrother->lineno, 7);
+            return NULL;
+        }
+        return type;
+    }else if(strcmp(parent->firstChild->name, "NOT") == 0){
+        // Exp: NOT Exp
+        Type type = exp(parent->firstChild->nextBrother);
+        if(type == NULL)    return NULL;
+        if(type->kind != BASIC || (type->kind == BASIC && type->u.basic != INT)){
+            serror("Wrong type, need INT", parent->firstChild->nextBrother->lineno, 7);
+            return NULL;
+        }
+        return type;
+    }else if(strcmp(parent->firstChild->name, "LP") == 0){
+        // Exp: LP Exp RP
+        return exp(parent->firstChild->nextBrother);
+    }else{
+        // Exp: ID LP (Args) RP
+        Type type = getIDType(parent->firstChild->text);
+        if(type == NULL){
+            serror("Undefined function used", parent->firstChild->lineno, 2);
+            return NULL;
+        }
+        if(type->kind != FUNCTION){
+            serror("Not FUNCTION variable", parent->firstChild->lineno, 11);
+            return NULL;
+        }
+        if(strcmp(parent->firstChild->nextBrother->nextBrother->name, "Args") == 0){
+            // 参数出错
+            if(Args(parent->firstChild->nextBrother->nextBrother, type) == 0){
+                return NULL;
+            }
+        }
+        return type->u.function->returnType;
+    }
 }
 
 void stmt(treeNode* parent, Type type){
@@ -482,4 +641,39 @@ void stmt(treeNode* parent, Type type){
             stmt(parent->firstChild->nextBrother->nextBrother->nextBrother->nextBrother->nextBrother->nextBrother, type);
         }
     }
+}
+
+int Args(treeNode* parent, Type type){
+    FieldList fieldList1 = type->u.function->paramType;
+    FieldList fieldList2 = NULL;
+
+    treeNode* cur = parent->firstChild;
+    while(cur != NULL){
+        FieldList temp = (FieldList)malloc(sizeof(struct FieldList_));
+        temp->type = exp(cur);
+        temp->tail = fieldList2;
+        fieldList2 = temp;
+        if(cur->nextBrother != NULL){
+            // Args: Exp COMMA Args
+            cur = cur->nextBrother->nextBrother->firstChild;
+        }else{
+            // Args: Exp
+            break;
+        }
+    }
+    FieldList cur1 = fieldList1;
+    FieldList cur2 = fieldList2;
+    while((cur1 != NULL) && (cur2 != NULL)){
+        if(isEqual(cur1->type, cur2->type) == 0){
+            serror("Mismatch type in Args", parent->lineno, 9);
+            return 0;
+        }
+        cur1 = cur1->tail;
+        cur2 = cur2->tail;
+    }
+    if(cur1 != NULL || cur2 != NULL){
+        serror("Mismatch type in Args", parent->lineno, 9);
+        return 0;
+    }
+    return 1;
 }
