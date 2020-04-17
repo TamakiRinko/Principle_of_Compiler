@@ -327,6 +327,12 @@ void funDec(treeNode* parent, Type returnType, int isDef){
     if(parent == NULL)  return;
     Type funcType = (Type)malloc(sizeof(struct Type_));
     funcType->kind = FUNCTION;
+    // funcType->u.function = (Function)malloc(sizeof(struct Function_));
+    // funcType->u.function->isDefined = isDef;
+    // funcType->u.function->returnType = returnType;
+    // funcType->u.function->paramNum = 0;
+    // funcType->u.function->paramType = NULL;
+
     funcType->u.function = (Function)malloc(sizeof(struct Function_));
     funcType->u.function->isDefined = isDef;
     funcType->u.function->returnType = returnType;
@@ -570,16 +576,19 @@ void structureVarDec(treeNode* parent, Type specifierType, Type structureType){
             current = current->tail;
         }
         // Insert into fieldList
-        fieldList->tail = structureType->u.structure.fieldList;
-        structureType->u.structure.fieldList = fieldList;
         if(!flag){
+            fieldList->tail = structureType->u.structure.fieldList;
+            structureType->u.structure.fieldList = fieldList;
             insertSymbolTable(symbol);
         }
     }else if(structureType->kind == FUNCTION){
         // Insert into fieldList
+        
         fieldList->tail = structureType->u.function->paramType;
         structureType->u.function->paramType = fieldList;
-        insertSymbolTable(symbol);
+        if(structureType->u.function->isDefined == 1){
+            insertSymbolTable(symbol);
+        }
     }
     
 }
@@ -618,6 +627,7 @@ Type Exp(treeNode* parent){
     Type expType = (Type)malloc(sizeof(struct Type_));
     if(strcmp(parent->firstChild->name, "ID") == 0 && parent->firstChild->nextBrother == NULL){
         // Exp: ID
+        // printf("text = %s\n", parent->firstChild->text);
         Type type = getIDType(parent->firstChild->text);
         if(type == NULL){
             serror("Variable used without definition", parent->lineno, 1);
@@ -689,6 +699,7 @@ Type Exp(treeNode* parent){
             }
         }else{
             // Exp: Exp DOT ID
+            // printf("hola\n");
             Type type1 = Exp(parent->firstChild);
             if(type1 == NULL)   return NULL;
             if(type1->kind != STRUCTURE){
@@ -696,9 +707,6 @@ Type Exp(treeNode* parent){
                 return NULL;
             }else{
                 FieldList fieldList = type1->u.structure.fieldList;
-                if(fieldList == NULL){
-                    printf("null!\n");
-                }
                 while(fieldList != NULL){
                     if(strcmp(fieldList->name, parent->firstChild->nextBrother->nextBrother->text) == 0){
                         return fieldList->type;

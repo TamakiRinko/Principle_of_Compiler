@@ -29,6 +29,7 @@ struct Type_{
         struct { char* name; FieldList fieldList; } structure;
 
         // 函数
+        // Function function;
         Function function;
     }u;
 };
