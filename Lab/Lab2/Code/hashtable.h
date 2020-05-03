@@ -5,7 +5,13 @@
 #include <string.h>
 #include "treeNode.h"
 // #define print_lab_2
-#define TABLE_NUM 1024
+#define TABLE_NUM 1023
+
+// #define BITS_IN_int (sizeof (int) * CHAR_BIT)
+// #define THREE_QUARTERS ((int) ((BITS_IN_int * 3) / 4))
+// #define ONE_EIGHTH ((int) (BITS_IN_int / 8 ))
+// #define HIGH_BITS  ( ~((unsigned int)(~0) >> ONE_EIGHTH ))
+
 
 typedef struct Type_* Type;
 typedef struct FieldList_* FieldList;
@@ -82,7 +88,7 @@ void varDec(treeNode* parent, Type type);
 void varList(treeNode* parent, Type functionType);
 void defList(treeNode* parent);
 void stmtList(treeNode* parent, Type type);
-FieldList structureDefList(treeNode* parent, Type type);                     // 结构体内部定义
+void structureDefList(treeNode* parent, Type type);                     // 结构体内部定义
 void def(treeNode* parent);
 void decList(treeNode* parent, Type type);
 void structureDef(treeNode* parent, Type type);

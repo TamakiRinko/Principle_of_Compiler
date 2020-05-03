@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "cmath": "c",
-        "sstream": "c"
+        "sstream": "c",
+        "typeinfo": "c"
     }
 }

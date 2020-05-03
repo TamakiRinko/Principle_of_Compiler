@@ -120,6 +120,17 @@ unsigned int hash_pjw(char* name){
     return val;
 }
 
+// unsigned int hash_pjw (char * datum){
+//     unsigned int hash_value, i;
+//     for ( hash_value = 0; *datum; ++datum){
+//         hash_value = (hash_value << ONE_EIGHTH) + *datum;
+//         if ((i = hash_value & HIGH_BITS ) != 0)
+//             hash_value = ( hash_value ^ ( i >> THREE_QUARTERS )) &
+//                           ~HIGH_BITS;
+//     }
+//     return hash_value;
+// }
+
 int isEqual(Type t1, Type t2){
 #ifdef print_lab_2
     printf("isEqual\n");
@@ -289,6 +300,7 @@ Type specifier(treeNode* parent){
     printf("specifier\n");
 #endif
     if(parent == NULL)  return NULL;
+    // printf("type = %s\n", parent->firstChild->name);
     if(strcmp(parent->firstChild->name, "TYPE") == 0){
         // Specifier: TYPE
         Type type = (Type)malloc(sizeof(struct Type_));
@@ -465,15 +477,17 @@ void stmtList(treeNode* parent, Type type){
     stmtList(parent->firstChild->nextBrother, type);
 }
 
-FieldList structureDefList(treeNode* parent, Type type){
+void structureDefList(treeNode* parent, Type type){
 #ifdef print_lab_2
     printf("structureDefList\n");
 #endif
     //TODO: 
-    if(parent == NULL)  return NULL;
+    if(parent == NULL)  return;
     // DefList: Def DefList
     structureDef(parent->firstChild, type);
-    structureDefList(parent->firstChild->nextBrother, type);
+    if(parent->firstChild != NULL){
+        structureDefList(parent->firstChild->nextBrother, type);
+    }
 }
 
 void def(treeNode* parent){
@@ -505,6 +519,7 @@ void structureDef(treeNode* parent, Type type){
     printf("structureDef\n");
 #endif
     // Def: Specifier DecList SEMI
+    if(parent == NULL)  return;
     Type specifierType = specifier(parent->firstChild);
     if(specifierType == NULL)    return;
     structureDecList(parent->firstChild->nextBrother, specifierType, type);
