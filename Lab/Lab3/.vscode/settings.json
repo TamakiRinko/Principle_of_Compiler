@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "ir.h": "c",
+        "string": "c",
+        "functional": "c",
+        "limits": "c",
+        "array": "c",
+        "initializer_list": "c",
+        "utility": "c"
+    }
+}
