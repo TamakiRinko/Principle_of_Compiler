@@ -313,134 +313,129 @@ Operand IRVarDec(treeNode* parent){
     return varOperand1;
 }
 
-Operand IRExp(treeNode* parent){
+Operand IRExp(treeNode* parent, Operand place){
 #ifdef print_lab_3
     printf("IRExp\n");
 #endif
     if(strcmp(parent->firstChild->name, "ID") == 0 && parent->firstChild->nextBrother == NULL){
         // Exp: ID
         Operand idOperand = findOperand(parent->firstChild->text);
-        return idOperand;
+        if(place == NULL){
+            return idOperand;
+        }else{
+            InterCode idInterCode = newInterCode(ASSIGN, idOperand, NULL, place);
+            insertInterCode(idInterCode);
+            return NULL;
+        }
     }else if(strcmp(parent->firstChild->name, "INT") == 0){
         // Exp: INT
         Operand intOperand = newOperand(CONSTANT, atoi(parent->firstChild->text), NULL);
-        return intOperand;
+        if(place == NULL){
+            return intOperand;
+        }else{
+            InterCode intInterCode = newInterCode(ASSIGN, intOperand, NULL, place);
+            insertInterCode(intInterCode);
+            return NULL;
+        }
     }else if(strcmp(parent->firstChild->name, "FLOAT") == 0){
         // TODO:???
         return NULL;
     }else if(strcmp(parent->firstChild->name, "Exp") == 0){
         if(strcmp(parent->firstChild->nextBrother->nextBrother->name, "Exp") == 0){
-            Type type1 = Exp(parent->firstChild);
-            Type type2 = Exp(parent->firstChild->nextBrother->nextBrother);
-            if(type1 == NULL || type2 == NULL)  return NULL;
             if(strcmp(parent->firstChild->nextBrother->name, "LB") != 0){
                 if(strcmp(parent->firstChild->nextBrother->name, "ASSIGNOP") == 0){
-                    if(isRightValue(parent->firstChild)){
-                        serror("Right value at right of assignment", parent->lineno, 6);
-                        return NULL;
+                    // Exp: Exp ASSIGNOP Exp
+                    Operand leftOperand = IRExp(parent->firstChild, NULL);
+                    IRExp(parent->firstChild->nextBrother->nextBrother, leftOperand);
+                    if(place != NULL){
+                        InterCode assignInterCode = newInterCode(ASSIGN, leftOperand, NULL, place);
+                        insertInterCode(assignInterCode);
                     }
-                    if(isEqual(type1, type2) == 0){
-                        serror("Mismatch type between ASSIGNOP", parent->firstChild->lineno, 5);
-                        return NULL;
-                    }  
-                    return type2;
+                    return leftOperand;
                 }
                 // Exp: Exp operator Exp
-                if(isEqual(type1, type2) == 0){
-                    serror("Mismatch type between operator", parent->firstChild->lineno, 7);
-                    return NULL;
-                }else{
-                    if(strcmp(parent->firstChild->nextBrother->name, "AND") == 0 || 
-                        strcmp(parent->firstChild->nextBrother->name, "OR") == 0 || 
-                        strcmp(parent->firstChild->nextBrother->name, "RELOP") == 0){
-                        if(type2->kind != BASIC || (type2->kind == BASIC && type2->u.basic != INT)){
-                            serror("Wrong type, need INT", parent->firstChild->lineno, 7);
-                            return NULL;
-                        }else if(type1->kind != BASIC || (type1->kind == BASIC && type1->u.basic != INT)){
-                            serror("Wrong type, need INT", parent->firstChild->lineno, 7);
-                            return NULL;
-                        }
-                        // 逻辑运算，类型为整形
-                        return type1;
-                    }else{
-                        // 加减乘除，类型不变
-                        if(type1->kind != BASIC || type2->kind != BASIC){
-                            serror("Wrong type, need INT OR FLOAT", parent->firstChild->lineno, 7);
-                            return NULL;
-                        }
-                        return type1;
+                else if(strcmp(parent->firstChild->nextBrother->name, "AND") == 0 || 
+                    strcmp(parent->firstChild->nextBrother->name, "OR") == 0 || 
+                    strcmp(parent->firstChild->nextBrother->name, "RELOP") == 0){
+                    if(place == NULL){
+                        place = newOperand(TEMPORARY_VARIABLE, temp_var_num++, NULL);
                     }
+                    Operand label1 = newOperand(LABEL_OPERAND, label_num++, NULL);
+                    Operand label2 = newOperand(LABEL_OPERAND, label_num++, NULL);
+                    Operand zeroOperand = newOperand(CONSTANT, 0, NULL);
+                    Operand oneOperand = newOperand(CONSTANT, 1, NULL);
+                    InterCode placeZeroInterCode = newInterCode(ASSIGN, zeroOperand, NULL, place);
+                    InterCode placeOneInterCode = newInterCode(ASSIGN, oneOperand, NULL, place);
+                    InterCode labelCode1 = newInterCode(LABEL_INTERCODE, label1, NULL, NULL);
+                    InterCode labelCode2 = newInterCode(LABEL_INTERCODE, label2, NULL, NULL);
+                    insertInterCode(placeZeroInterCode);
+                    IRCond(parent, label1, label2);
+                    insertInterCode(labelCode1);
+                    insertInterCode(placeOneInterCode);
+                    insertInterCode(labelCode2);
+                    return place;
+                }else{
+                    // 加减乘除，类型不变
+                    if(place == NULL){
+                        place = newOperand(TEMPORARY_VARIABLE, temp_var_num++, NULL);
+                    }
+                    Operand leftOperand = IRExp(parent->firstChild, NULL);
+                    Operand rightOperand = IRExp(parent->firstChild->nextBrother->nextBrother, NULL);
+                    InterCode operationsInterCode = NULL;
+                    if(strcmp(parent->firstChild->nextBrother->name, "PLUS") == 0){
+                        operationsInterCode = newInterCode(PLUS, leftOperand, rightOperand, place);
+                    }else if(strcmp(parent->firstChild->nextBrother->name, "MINUS") == 0){
+                        operationsInterCode = newInterCode(MINUS, leftOperand, rightOperand, place);
+                    }else if(strcmp(parent->firstChild->nextBrother->name, "STAR") == 0){
+                        operationsInterCode = newInterCode(STAR, leftOperand, rightOperand, place);
+                    }else if(strcmp(parent->firstChild->nextBrother->name, "DIV") == 0){
+                        operationsInterCode = newInterCode(DIV, leftOperand, rightOperand, place);
+                    }
+                    insertInterCode(operationsInterCode);
+                    return place;
                 }
             }else{
                 // Exp: Exp LB Exp RB
-                if(type1->kind != ARRAY){
-                    serror("NOT ARRAY Variable", parent->firstChild->lineno, 10);
-                    return NULL;
-                }else if(type2->kind != BASIC || (type2->kind == BASIC && type2->u.basic != INT)){
-                    serror("NOT INT IN [...]", parent->firstChild->lineno, 12);
-                    return NULL;
-                }
-                return type1->u.array.elem;
+                
             }
         }else{
             // Exp: Exp DOT ID
-            // printf("hola\n");
-            Type type1 = Exp(parent->firstChild);
-            if(type1 == NULL)   return NULL;
-            if(type1->kind != STRUCTURE){
-                serror("NOT STRUCTURE Variable", parent->firstChild->lineno, 13);
-                return NULL;
-            }else{
-                FieldList fieldList = type1->u.structure.fieldList;
-                while(fieldList != NULL){
-                    if(strcmp(fieldList->name, parent->firstChild->nextBrother->nextBrother->text) == 0){
-                        return fieldList->type;
-                    }
-                    fieldList = fieldList->tail;
-                }
-                serror("Undefined variable in STRUCTURE", parent->firstChild->nextBrother->nextBrother->lineno, 14);
-                return NULL;
-            }
+            
         }
     }else if(strcmp(parent->firstChild->name, "MINUS") == 0){
         // Exp: MINUS Exp
-        Type type = Exp(parent->firstChild->nextBrother);
-        if(type == NULL)    return NULL;
-        if(type->kind != BASIC){
-            serror("Wrong type, need INT OR FLOAT", parent->firstChild->nextBrother->lineno, 7);
-            return NULL;
+        Operand minusOperand = IRExp(parent->firstChild->nextBrother, NULL);
+        if(place == NULL){
+            place = newOperand(TEMPORARY_VARIABLE, temp_var_num++, NULL);
         }
-        return type;
+        Operand zeroOperand = newOperand(CONSTANT, 0, NULL);
+        InterCode minusInterCode = newInterCode(MINUS, zeroOperand, minusOperand, place);
+        return place;
     }else if(strcmp(parent->firstChild->name, "NOT") == 0){
         // Exp: NOT Exp
-        Type type = Exp(parent->firstChild->nextBrother);
-        if(type == NULL)    return NULL;
-        if(type->kind != BASIC || (type->kind == BASIC && type->u.basic != INT)){
-            serror("Wrong type, need INT", parent->firstChild->nextBrother->lineno, 7);
-            return NULL;
+        if(place == NULL){
+            place = newOperand(TEMPORARY_VARIABLE, temp_var_num++, NULL);
         }
-        return type;
+        Operand label1 = newOperand(LABEL_OPERAND, label_num++, NULL);
+        Operand label2 = newOperand(LABEL_OPERAND, label_num++, NULL);
+        Operand zeroOperand = newOperand(CONSTANT, 0, NULL);
+        Operand oneOperand = newOperand(CONSTANT, 1, NULL);
+        InterCode placeZeroInterCode = newInterCode(ASSIGN, zeroOperand, NULL, place);
+        InterCode placeOneInterCode = newInterCode(ASSIGN, oneOperand, NULL, place);
+        InterCode labelCode1 = newInterCode(LABEL_INTERCODE, label1, NULL, NULL);
+        InterCode labelCode2 = newInterCode(LABEL_INTERCODE, label2, NULL, NULL);
+        insertInterCode(placeZeroInterCode);
+        IRCond(parent, label1, label2);
+        insertInterCode(labelCode1);
+        insertInterCode(placeOneInterCode);
+        insertInterCode(labelCode2);
+        return place;
     }else if(strcmp(parent->firstChild->name, "LP") == 0){
         // Exp: LP Exp RP
-        return IRExp(parent->firstChild->nextBrother);
+        return IRExp(parent->firstChild->nextBrother, place);
     }else{
         // Exp: ID LP (Args) RP
-        Type type = getFuncType(parent->firstChild->text);
-        if(type == NULL){
-            serror("Undefined function used", parent->firstChild->lineno, 2);
-            return NULL;
-        }
-        if(type->kind != FUNCTION){
-            serror("Not FUNCTION variable", parent->firstChild->lineno, 11);
-            return NULL;
-        }
-        if(strcmp(parent->firstChild->nextBrother->nextBrother->name, "Args") == 0){
-            // 参数出错
-            if(Args(parent->firstChild->nextBrother->nextBrother, type) == 0){
-                return NULL;
-            }
-        }
-        return type->u.function->returnType;
+        
     }
 }
 
