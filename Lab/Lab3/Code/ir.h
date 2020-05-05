@@ -7,7 +7,9 @@
 
 typedef struct Operand_t* Operand;
 typedef struct InterCode_t* InterCode;
-enum OperandKind { VARIABLE, CONSTANT, ADDRESS, LABEL_OPERAND, FUNCTION_OPERAND, TEMPORARY_VARIABLE };
+typedef struct PointToOperand_ * PointToOperand;
+
+enum OperandKind { VARIABLE, CONSTANT, ADDRESS, REFERENCE, LABEL_OPERAND, FUNCTION_OPERAND, TEMPORARY_VARIABLE };
 enum InterCodeKind { LABEL_INTERCODE, FUNCTION_INTERCODE, ASSIGN, PLUS, MINUS, STAR, DIV, 
             ADDR, LEFT_REF, RIGHT_REF, GOTO, JE, JNE, JA, JAE, JB, JBE, 
             RETURN, DEC, ARG, CALL, PARAM, READ, WRITE };
@@ -37,6 +39,11 @@ struct InterCode_t{
     Operand op2;
     InterCode next;
     InterCode prev;
+};
+
+struct PointToOperand_{
+    Operand point;
+    PointToOperand next;
 };
 
 InterCode inter_code_head;
@@ -73,8 +80,10 @@ void IRDecList(treeNode* parent);
 void IRDec(treeNode* parent);
 Operand IRVarDec(treeNode* parent);
 Operand IRExp(treeNode* parent, Operand place);
+PointToOperand IRArgs(treeNode* parent);
 
 void IRStmt(treeNode* parent);
 void IRCond(treeNode* parent, Operand label1, Operand label2);
+int getStructureIndex(Type type, char* name);
 
 #endif

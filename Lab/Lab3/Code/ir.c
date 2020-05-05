@@ -106,6 +106,19 @@ Operand findOperand(char* name){
     return NULL;
 }
 
+int getStructureIndex(Type type, char* name){
+    FieldList cur = type->u.structure.fieldList;
+    int index = 0;
+    while(cur != NULL){
+        if(strcmp(cur->name, name) == 0){
+            break;
+        }
+        index += getTypeSize(cur->type);
+        cur = cur->tail;
+    }
+    return index;
+}
+
 void IRProgram(treeNode* root){
 #ifdef print_lab_3
     printf("IRProgram\n");
@@ -188,13 +201,20 @@ void IRFunctionVarDec(treeNode* parent){
         cur = cur->firstChild;
     }
     Type type = getIDType(cur->text);
+    Operand varOperand = NULL;
     if(type == NULL)    return;
     if(type->kind == ARRAY){
         // 函数参数为数组
         IRERROR = 1;
         return;
+    }else if(type->kind == STRUCTURE){
+        // 结构体，传入的是地址
+        varOperand = newOperand(ADDRESS, var_num++, cur->text);
+    }else{
+        varOperand = newOperand(VARIABLE, var_num++, cur->text);
     }
-    Operand varOperand = newOperand(VARIABLE, var_num++, cur->text);
+
+    // Operand varOperand = newOperand(VARIABLE, var_num++, cur->text);
     insertOperand(varOperand);
     InterCode varInterCode = newInterCode(PARAM, varOperand, NULL, NULL);
     insertInterCode(varInterCode);
@@ -270,7 +290,7 @@ void IRDec(treeNode* parent){
     }else{
         // Dec: VarDec ASSIGNOP Exp
         Operand left = IRVarDec(parent->firstChild);
-        Operand right = IRExp(parent->firstChild->nextBrother->nextBrother);
+        Operand right = IRExp(parent->firstChild->nextBrother->nextBrother, NULL);
         InterCode decInterCode = newInterCode(ASSIGN, right, NULL, left);
         insertInterCode(decInterCode);
     }
@@ -396,11 +416,56 @@ Operand IRExp(treeNode* parent, Operand place){
                 }
             }else{
                 // Exp: Exp LB Exp RB
-                
+                // a[i] = j
+                // a
+                Type arrayType = getIDType(parent->firstChild->firstChild->text);     // 一定是一维数组
+                // 4
+                int size = getTypeSize(arrayType->u.array.elem);
+                // v1
+                Operand arrayOperand = findOperand(parent->firstChild->firstChild->text);
+                // 数组不会有地址类型出现
+                // &v1
+                Operand arrayReferenceOperand = newOperand(REFERENCE, arrayOperand->u.variable.var_num, arrayOperand->u.variable.var_name);
+                // 4
+                Operand sizeOperand = newOperand(CONSTANT, size, NULL);
+                // i
+                Operand indexOperand = IRExp(parent->firstChild->nextBrother->nextBrother, NULL);
+                // t1
+                Operand tempIndexOperand = newOperand(TEMPORARY_VARIABLE, temp_var_num++, NULL);
+                // t1 = i * 4
+                InterCode indexInterCode = newInterCode(STAR, indexOperand, sizeOperand, tempIndexOperand);
+                // t2
+                Operand resultOperand = newOperand(TEMPORARY_VARIABLE, temp_var_num++, NULL);
+                // t2 = &v1 + t1
+                InterCode resultInterCode = newInterCode(PLUS, arrayReferenceOperand, tempIndexOperand, resultOperand);
+                insertInterCode(indexInterCode);
+                insertInterCode(resultInterCode);
+                return resultOperand;
             }
         }else{
             // Exp: Exp DOT ID
-            
+            treeNode* cur = parent;
+            int index = 0;
+            while(strcmp(cur->firstChild->name, "Exp") == 0){
+                Type type = getIDType(cur->firstChild->nextBrother->nextBrother->text);
+                index += getStructureIndex(type, cur->nextBrother->nextBrother->text);
+                cur = cur->firstChild;
+            }
+            Type type = getIDType(cur->firstChild->text);
+            index += getStructureIndex(type, cur->nextBrother->nextBrother->text);
+            // v1
+            Operand structureOperand = findOperand(cur->firstChild->text);
+            Operand indexOperand = newOperand(CONSTANT, index, NULL);
+            Operand resultOperand = newOperand(TEMPORARY_VARIABLE, temp_var_num++, NULL);
+            InterCode resultInterCode = NULL;
+            if(structureOperand->kind == VARIABLE){
+                Operand structureReferenceOperand = newOperand(REFERENCE, structureOperand->u.variable.var_num, structureOperand->u.variable.var_name);
+                resultInterCode = newInterCode(PLUS, structureReferenceOperand, indexOperand, resultOperand);
+            }else if(structureOperand->kind == ADDRESS){
+                resultInterCode = newInterCode(PLUS, structureOperand, indexOperand, resultOperand);
+            }
+            insertInterCode(resultInterCode);
+            return resultOperand;
         }
     }else if(strcmp(parent->firstChild->name, "MINUS") == 0){
         // Exp: MINUS Exp
@@ -433,9 +498,44 @@ Operand IRExp(treeNode* parent, Operand place){
     }else if(strcmp(parent->firstChild->name, "LP") == 0){
         // Exp: LP Exp RP
         return IRExp(parent->firstChild->nextBrother, place);
+    }else if(strcmp(parent->firstChild->nextBrother->nextBrother->name, "Args") == 0){
+        // Exp: ID LP Args RP
+        PointToOperand args_list = IRArgs(parent->firstChild->nextBrother->nextBrother);
+        if(strcmp(parent->firstChild->text, "write") == 0){
+            // write
+            InterCode writeInterCode = newInterCode(WRITE, NULL, NULL, args_list->next->point);
+            insertInterCode(writeInterCode);
+            return NULL;
+        }else{
+            if(place == NULL){
+                place = newOperand(TEMPORARY_VARIABLE, temp_var_num++, NULL);
+            }
+            PointToOperand cur = args_list->next;
+            while(cur != NULL){
+                InterCode argInterCode = newInterCode(ARG, NULL, NULL, cur->point);
+                insertInterCode(argInterCode);
+                cur = cur->next;
+            }
+            Operand functionOperand = findOperand(parent->firstChild->text);
+            InterCode callInterCode = newInterCode(CALL, functionOperand, NULL, place);
+            insertInterCode(callInterCode);
+            return place;
+        }
     }else{
-        // Exp: ID LP (Args) RP
-        
+        // Exp: ID LP RP
+        if(place == NULL){
+            place = newOperand(TEMPORARY_VARIABLE, temp_var_num++, NULL);
+        }
+        // read
+        if(strcmp(parent->firstChild->text, "read") == 0){
+            InterCode readInterCode = newInterCode(READ, NULL, NULL, place);
+            insertInterCode(readInterCode);
+            return place;
+        }
+        Operand functionOperand = findOperand(parent->firstChild->text);
+        InterCode callInterCode = newInterCode(CALL, functionOperand, NULL, place);
+        insertInterCode(callInterCode);
+        return place;
     }
 }
 
@@ -446,13 +546,13 @@ void IRStmt(treeNode* parent){
     if(parent == NULL)  return;
     if(strcmp(parent->firstChild->name, "Exp") == 0){
         // Stmt: Exp SEMI
-        IRExp(parent->firstChild);
+        IRExp(parent->firstChild, NULL);
     }else if(strcmp(parent->firstChild->name, "CompSt") == 0){
         // Stmt: CompSt
         IRCompSt(parent->firstChild);
     }else if(strcmp(parent->firstChild->name, "RETURN") == 0){
         // Stmt: RETURN Exp SEMI
-        Operand returnOperand = IRExp(parent->firstChild->nextBrother);
+        Operand returnOperand = IRExp(parent->firstChild->nextBrother, NULL);
         InterCode returnInterCode = newInterCode(RETURN, returnOperand, NULL, NULL);
         insertInterCode(returnInterCode);
     }else if(strcmp(parent->firstChild->name, "IF") == 0){
@@ -524,8 +624,8 @@ void IRCond(treeNode* parent, Operand label_true, Operand label_false){
     }else if(strcmp(parent->firstChild->name, "Exp") == 0 && strcmp(parent->firstChild->nextBrother->name, "RELOP") == 0){
         // Exp: Exp1 RELOP Exp2
         // code1 code2 code3 [GOTO label_false]
-        Operand leftOperand = IRExp(parent->firstChild);
-        Operand rightOperand = IRExp(parent->firstChild->nextBrother->nextBrother);
+        Operand leftOperand = IRExp(parent->firstChild, NULL);
+        Operand rightOperand = IRExp(parent->firstChild->nextBrother->nextBrother, NULL);
         InterCode relopInterCode = NULL;
         if(strcmp(parent->firstChild->nextBrother->text, ">") == 0){
             relopInterCode = newInterCode(JA, leftOperand, rightOperand, label_true);
@@ -546,11 +646,32 @@ void IRCond(treeNode* parent, Operand label_true, Operand label_false){
     }else{
         // Others
         // code1 code2 [GOTO label_false]
-        Operand expOperand = IRExp(parent);
+        Operand expOperand = IRExp(parent, NULL);
         Operand zeroOperand = newOperand(CONSTANT, 0, NULL);
         InterCode notEqualInterCode = newInterCode(JNE, expOperand, zeroOperand, label_true);
         InterCode gotoLabelFalse = newInterCode(GOTO, NULL, NULL, label_false);
         insertInterCode(notEqualInterCode);
         insertInterCode(gotoLabelFalse);
     }
+}
+
+PointToOperand IRArgs(treeNode* parent){
+    treeNode* cur = parent->firstChild;
+    PointToOperand arg_list = (PointToOperand)malloc(sizeof(struct PointToOperand_));
+    arg_list->next = NULL;
+    PointToOperand cur_list = arg_list;
+    while(cur->nextBrother != NULL){
+        PointToOperand point = (PointToOperand)malloc(sizeof(struct PointToOperand_));
+        point->point = IRExp(cur, NULL);
+        point->next = cur_list->next;
+        cur_list->next = point;
+        cur_list = cur_list->next;
+        cur = cur->nextBrother->nextBrother->firstChild;
+    }
+    PointToOperand point = (PointToOperand)malloc(sizeof(struct PointToOperand_));
+    point->point = IRExp(cur, NULL);
+    point->next = cur_list->next;
+    cur_list->next = point;
+    cur_list = cur_list->next;
+    return arg_list;
 }
