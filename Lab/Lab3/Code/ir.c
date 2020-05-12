@@ -1,6 +1,7 @@
 #include "ir.h"
 
 void printOperand(FILE* fp, Operand operand){
+    if(operand == NULL) return;
     switch(operand->kind){
         case VARIABLE:{
             fprintf(fp, "v%d", operand->u.variable.var_num);
@@ -19,7 +20,7 @@ void printOperand(FILE* fp, Operand operand){
             break;
         }
         case LABEL_OPERAND:{
-            fprintf(fp, "label%d", operand->u.variable);
+            fprintf(fp, "label%d", operand->u.num);
             break;
         }
         case FUNCTION_OPERAND:{
@@ -30,14 +31,28 @@ void printOperand(FILE* fp, Operand operand){
             fprintf(fp, "t%d", operand->u.num);
             break;
         }
+        case TEMPORARY_ADDRESS:{
+            fprintf(fp, "*t%d", operand->u.num);
+            break;
+        }
         default: break;
     }
 }
 
 void printInterCode(){
+    // int num = 0;
+    // InterCode cur1 = inter_code_head->next;
+    // while(cur1 != inter_code_head){
+    //     num++;
+    //     printf("kind = %d\n", cur1->kind);
+    //     cur1 = cur1->next;
+    // }
+    // printf("num = %d\n", num);
+
+
     FILE* fp = fopen("result", "w");
     InterCode cur = inter_code_head->next;
-    while(cur->next != inter_code_head){
+    while(cur != inter_code_head){
         switch(cur->kind){
             case LABEL_INTERCODE:{
                 fprintf(fp, "LABEL ");
@@ -202,6 +217,19 @@ void printInterCode(){
     fclose(fp);
 }
 
+int haveMultiDimensionalArray(){
+    for(int i = 0; i < TABLE_NUM; ++i){
+        Symbol cur = symbolTable[i];
+        while (cur != NULL){
+            if(cur->type->kind == ARRAY && cur->type->u.array.elem->kind == ARRAY){
+                return 1;
+            }
+            cur = cur->next;
+        }
+    }
+    return 0;
+}
+
 int getTypeSize(Type type){
     // 基本类型，４字节
     if(type->kind == BASIC) return 4;
@@ -236,7 +264,6 @@ void initIr(){
     operand_head->next = NULL;
     operand_tail = operand_head;
 
-
 }
 
 Operand newOperand(enum OperandKind kind, int num, char* name){
@@ -245,6 +272,7 @@ Operand newOperand(enum OperandKind kind, int num, char* name){
     result->next = NULL;
     switch (kind){
         case ADDRESS:
+        case REFERENCE:
         case VARIABLE:{
             // 一般变量
             result->u.variable.var_num = num;
@@ -254,6 +282,7 @@ Operand newOperand(enum OperandKind kind, int num, char* name){
         case CONSTANT:{
             // 常量
             result->u.const_value = num;
+            break;
         }
         case FUNCTION_OPERAND:{
             // 变量地址
@@ -261,7 +290,8 @@ Operand newOperand(enum OperandKind kind, int num, char* name){
             break;
         }
         case LABEL_OPERAND:
-        case TEMPORARY_VARIABLE:{
+        case TEMPORARY_VARIABLE:
+        case TEMPORARY_ADDRESS:{
             // 临时变量，标号
             result->u.num = num;
             break;
@@ -302,6 +332,19 @@ Operand findOperand(char* name){
     while (cur != NULL){
         if(cur->kind == VARIABLE && strcmp(cur->u.variable.var_name, name) == 0){
             return cur;
+        }else if(cur->kind == FUNCTION_OPERAND && strcmp(cur->u.name, name) == 0){
+            return cur;
+        }
+        cur = cur->next;
+    }
+    return NULL;
+}
+
+Operand findStructure(char* name){
+    Operand cur = operand_head->next;
+    while (cur != NULL){
+        if((cur->kind == VARIABLE || cur->kind == ADDRESS) && strcmp(cur->u.variable.var_name, name) == 0){
+            return cur;
         }
         cur = cur->next;
     }
@@ -327,7 +370,14 @@ void IRProgram(treeNode* root){
 #endif
     if(root == NULL)    return;
     initIr();
+
+    if(haveMultiDimensionalArray()){
+        printf("Cannot translate: Code contains variables of multi-dimensional array type or parameters of array type.\n");
+        return;
+    }
+
     IRExtDefList(root->firstChild);
+    printInterCode();
 }
 
 void IRExtDefList(treeNode* parent){
@@ -357,8 +407,10 @@ void IRFunDec(treeNode* parent){
     printf("IRFunDec\n");
 #endif
     if(parent == NULL)  return;
-    Operand funcOperand = newOperand(FUNCTION_OPERAND, 0, parent->firstChild->name);
+    Operand funcOperand = newOperand(FUNCTION_OPERAND, 0, parent->firstChild->text);
+    insertOperand(funcOperand);
     InterCode funcInterCode = newInterCode(FUNCTION_INTERCODE, funcOperand, NULL, NULL);
+    insertInterCode(funcInterCode);
     if(parent->firstChild->nextBrother->nextBrother->nextBrother != NULL){
         // FunDec: ID LP VarList RP
         IRVarList(parent->firstChild->nextBrother->nextBrother);
@@ -402,6 +454,7 @@ void IRFunctionVarDec(treeNode* parent){
         /*VarDec is array*/
         cur = cur->firstChild;
     }
+    // printf("param name = %s\n", name);
     Type type = getIDType(cur->text);
     Operand varOperand = NULL;
     if(type == NULL)    return;
@@ -409,17 +462,17 @@ void IRFunctionVarDec(treeNode* parent){
         // 函数参数为数组
         IRERROR = 1;
         return;
+    }else if(type->kind == STRUCTURE){
+        // 结构体，传入的是地址
+        varOperand = newOperand(ADDRESS, var_num++, cur->text);
+    }else{
+        varOperand = newOperand(VARIABLE, var_num++, cur->text);
     }
-    // else if(type->kind == STRUCTURE){
-    //     // 结构体，传入的是地址
-    //     varOperand = newOperand(ADDRESS, var_num++, cur->text);
-    // }else{
-    //     varOperand = newOperand(VARIABLE, var_num++, cur->text);
-    // }
-    varOperand = newOperand(VARIABLE, var_num++, cur->text);
+    // varOperand = newOperand(VARIABLE, var_num++, cur->text);
     // Operand varOperand = newOperand(VARIABLE, var_num++, cur->text);
     insertOperand(varOperand);
-    InterCode varInterCode = newInterCode(PARAM, varOperand, NULL, NULL);
+    Operand varOperand2 = newOperand(VARIABLE, varOperand->u.variable.var_num, cur->text);
+    InterCode varInterCode = newInterCode(PARAM, varOperand2, NULL, NULL);
     insertInterCode(varInterCode);
 }
 
@@ -505,9 +558,22 @@ Operand IRVarDec(treeNode* parent){
 #endif
     if(strcmp(parent->firstChild->name, "ID") == 0){
         // VarDec: ID
-        Operand varOperand = newOperand(VARIABLE, var_num++, parent->firstChild->text);
-        insertOperand(varOperand);
-        return varOperand;
+
+        Type type = getIDType(parent->firstChild->text);
+        if(type->kind == STRUCTURE){
+            int size = getTypeSize(type);
+            // printf("size = %d\n", size);
+            Operand varOperand1 = newOperand(VARIABLE, var_num++, parent->firstChild->text);
+            insertOperand(varOperand1);
+            Operand varOperand2 = newOperand(CONSTANT, size, NULL);
+            InterCode varInterCode = newInterCode(DEC, varOperand1, varOperand2, NULL);
+            insertInterCode(varInterCode);
+            return varOperand1;
+        }else{
+            Operand varOperand = newOperand(VARIABLE, var_num++, parent->firstChild->text);
+            insertOperand(varOperand);
+            return varOperand;
+        }
     }
     // VarDec: VarDec LB INT RB
     treeNode* cur = parent->firstChild;
@@ -521,13 +587,14 @@ Operand IRVarDec(treeNode* parent){
         cur = cur->firstChild;
     }
     Type type = getIDType(name);
-    if(type == NULL)    return;
+    if(type == NULL)    return NULL;
     if(type->kind == ARRAY && type->u.array.elem->kind == ARRAY){
         // 多维数组
         IRERROR = 1;
-        return;
+        return NULL;
     }
     int size = getTypeSize(type);
+    printf("size = %d\n", size);
     Operand varOperand1 = newOperand(VARIABLE, var_num++, name);
     insertOperand(varOperand1);
     Operand varOperand2 = newOperand(CONSTANT, size, NULL);
@@ -540,6 +607,9 @@ Operand IRExp(treeNode* parent, Operand place){
 #ifdef print_lab_3
     printf("IRExp\n");
 #endif
+    // printf("parent's name: %s\n", parent->name);
+    // printf("first child's name: %s\n", parent->firstChild->name);
+    // printNode(parent, 0);
     if(strcmp(parent->firstChild->name, "ID") == 0 && parent->firstChild->nextBrother == NULL){
         // Exp: ID
         Operand idOperand = findOperand(parent->firstChild->text);
@@ -647,7 +717,7 @@ Operand IRExp(treeNode* parent, Operand place){
             }
         }else{
             // Exp: Exp DOT ID
-            treeNode* cur = parent;
+            treeNode* cur = parent->firstChild;
             int index = 0;
             while(strcmp(cur->firstChild->name, "Exp") == 0){
                 Type type = getIDType(cur->firstChild->nextBrother->nextBrother->text);
@@ -657,18 +727,28 @@ Operand IRExp(treeNode* parent, Operand place){
             Type type = getIDType(cur->firstChild->text);
             index += getStructureIndex(type, cur->nextBrother->nextBrother->text);
             // v1
-            Operand structureOperand = findOperand(cur->firstChild->text);
+            Operand structureOperand = findStructure(cur->firstChild->text);
             Operand indexOperand = newOperand(CONSTANT, index, NULL);
             Operand resultOperand = newOperand(TEMPORARY_VARIABLE, temp_var_num++, NULL);
             InterCode resultInterCode = NULL;
+            // if(structureOperand == NULL){
+            //     printf("null!\n");
+            // }
             if(structureOperand->kind == VARIABLE){
+                // 普通结构体使用，&v1
+                // printf("2\n");
                 Operand structureReferenceOperand = newOperand(REFERENCE, structureOperand->u.variable.var_num, structureOperand->u.variable.var_name);
                 resultInterCode = newInterCode(PLUS, structureReferenceOperand, indexOperand, resultOperand);
             }else if(structureOperand->kind == ADDRESS){
-                resultInterCode = newInterCode(PLUS, structureOperand, indexOperand, resultOperand);
+                // 参数结构体引用, v1
+                // printf("3\n");
+                Operand structureReferenceOperand = newOperand(VARIABLE, structureOperand->u.variable.var_num, structureOperand->u.variable.var_name);
+                resultInterCode = newInterCode(PLUS, structureReferenceOperand, indexOperand, resultOperand);
             }
+            // printf("4\n");
             insertInterCode(resultInterCode);
-            return resultOperand;
+            Operand resultOperand2 = newOperand(TEMPORARY_ADDRESS, resultOperand->u.num, NULL);
+            return resultOperand2;
         }
     }else if(strcmp(parent->firstChild->name, "MINUS") == 0){
         // Exp: MINUS Exp
@@ -678,6 +758,7 @@ Operand IRExp(treeNode* parent, Operand place){
         }
         Operand zeroOperand = newOperand(CONSTANT, 0, NULL);
         InterCode minusInterCode = newInterCode(MINUS, zeroOperand, minusOperand, place);
+        insertInterCode(minusInterCode);
         return place;
     }else if(strcmp(parent->firstChild->name, "NOT") == 0){
         // Exp: NOT Exp
@@ -859,6 +940,9 @@ void IRCond(treeNode* parent, Operand label_true, Operand label_false){
 }
 
 PointToOperand IRArgs(treeNode* parent){
+#ifdef print_lab_3
+    printf("IRArgs\n");
+#endif
     treeNode* cur = parent->firstChild;
     PointToOperand arg_list = (PointToOperand)malloc(sizeof(struct PointToOperand_));
     arg_list->next = NULL;
@@ -866,6 +950,14 @@ PointToOperand IRArgs(treeNode* parent){
     while(cur->nextBrother != NULL){
         PointToOperand point = (PointToOperand)malloc(sizeof(struct PointToOperand_));
         point->point = IRExp(cur, NULL);
+        if(point->point->kind == VARIABLE){
+            // ARG + 结构体，若是一般结构体变量，则需要增加&
+            Type type = getIDType(point->point->u.variable.var_name);
+            if(type->kind == STRUCTURE){
+                Operand structureReferenceOperand = newOperand(REFERENCE, point->point->u.variable.var_num, point->point->u.variable.var_name);
+                point->point = structureReferenceOperand;
+            }
+        }
         point->next = cur_list->next;
         cur_list->next = point;
         cur_list = cur_list->next;
@@ -873,6 +965,14 @@ PointToOperand IRArgs(treeNode* parent){
     }
     PointToOperand point = (PointToOperand)malloc(sizeof(struct PointToOperand_));
     point->point = IRExp(cur, NULL);
+    if(point->point->kind == VARIABLE){
+        // ARG + 结构体，若是一般结构体变量，则需要增加&
+        Type type = getIDType(point->point->u.variable.var_name);
+        if(type->kind == STRUCTURE){
+            Operand structureReferenceOperand = newOperand(REFERENCE, point->point->u.variable.var_num, point->point->u.variable.var_name);
+            point->point = structureReferenceOperand;
+        }
+    }
     point->next = cur_list->next;
     cur_list->next = point;
     cur_list = cur_list->next;

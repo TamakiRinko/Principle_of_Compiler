@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "treeNode.h"
 #include "hashtable.h"
+#include "ir.h"
 extern void yyrestart(FILE * input_file );
 extern int yyparse();
 extern int yylineno;
@@ -25,6 +26,7 @@ int main(int argc, char** argv){
         if(haveError == 0 && is_empty == 0){
             // printNode(root, 0);
             program(root);
+            IRProgram(root);
         }
         // else if(is_empty == 1){
         //     printf("Program (%d)\n", empty_line_num);

@@ -174,6 +174,41 @@ void initSymbolTable(){
     for(int i = 0; i < TABLE_NUM; ++i){
         symbolTable[i] = NULL;
     }
+
+    Type readReturnType = (Type)malloc(sizeof(struct Type_));
+    readReturnType->kind = BASIC;
+    readReturnType->u.basic = INT;
+    Function readFunction = (Function)malloc(sizeof(struct Function_));
+    Type readType = (Type)malloc(sizeof(struct Type_));
+    readType->kind = FUNCTION;
+    readType->u.function = readFunction;
+    readType->u.function->isDefined = 1;
+    readType->u.function->paramNum = 0;
+    readType->u.function->paramType = NULL;
+    readType->u.function->returnType = readReturnType;
+    Symbol readSymbol = newSymbol("read", readType, 0);
+    insertSymbolTable(readSymbol);
+
+    Type writeReturnType = (Type)malloc(sizeof(struct Type_));
+    writeReturnType->kind = BASIC;
+    writeReturnType->u.basic = INT;
+    Type writeParamType = (Type)malloc(sizeof(struct Type_));
+    writeParamType->kind = BASIC;
+    writeParamType->u.basic = INT;
+    Function writeFunction = (Function)malloc(sizeof(struct Function_));
+    FieldList writeFieldList = (FieldList)malloc(sizeof(struct FieldList_));
+    writeFieldList->tail = NULL;
+    writeFieldList->type = writeParamType;
+    Type writeType = (Type)malloc(sizeof(struct Type_));
+    writeType->kind = FUNCTION;
+    writeType->u.function = writeFunction;
+    writeType->u.function->isDefined = 1;
+    writeType->u.function->paramNum = 1;
+    writeType->u.function->paramType = writeFieldList;
+    writeType->u.function->returnType = writeReturnType;
+    Symbol writeSymbol = newSymbol("write", writeType, 0);
+    insertSymbolTable(writeSymbol);
+
 }
 
 int insertSymbolTable(Symbol symbol){
@@ -242,11 +277,12 @@ void checkDef(){
 }
 
 void program(treeNode* root){
-    structureId = 1;
     // printf("%d\n", structureId);
 #ifdef print_lab_2
     printf("program\n");
 #endif
+    structureId = 1;
+    initSymbolTable();
     if(root->firstChild != NULL){
         extDefList(root->firstChild);
         checkDef();
@@ -743,6 +779,7 @@ Type Exp(treeNode* parent){
         return Exp(parent->firstChild->nextBrother);
     }else{
         // Exp: ID LP (Args) RP
+        // printf("name = %s\n", parent->firstChild->text);
         Type type = getFuncType(parent->firstChild->text);
         if(type == NULL){
             serror("Undefined function used", parent->firstChild->lineno, 2);

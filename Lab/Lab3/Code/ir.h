@@ -5,11 +5,13 @@
 #include "treeNode.h"
 #include "hashtable.h"
 
+// #define print_lab_3
+
 typedef struct Operand_t* Operand;
 typedef struct InterCode_t* InterCode;
 typedef struct PointToOperand_ * PointToOperand;
 
-enum OperandKind { VARIABLE, CONSTANT, ADDRESS, REFERENCE, LABEL_OPERAND, FUNCTION_OPERAND, TEMPORARY_VARIABLE };
+enum OperandKind { VARIABLE, CONSTANT, ADDRESS, REFERENCE, LABEL_OPERAND, FUNCTION_OPERAND, TEMPORARY_VARIABLE, TEMPORARY_ADDRESS };
 enum InterCodeKind { LABEL_INTERCODE, FUNCTION_INTERCODE, ASSIGN, PLUS, MINUS, STAR, DIV, 
             ADDR, LEFT_REF, RIGHT_REF, GOTO, JE, JNE, JA, JAE, JB, JBE, 
             RETURN, DEC, ARG, CALL, PARAM, READ, WRITE };
@@ -60,6 +62,8 @@ int IRERROR;
 void printOperand(FILE* fp, Operand operand);
 void printInterCode();
 
+int haveMultiDimensionalArray();
+
 int getTypeSize(Type type);
 
 Operand newOperand(enum OperandKind kind, int num, char* name);
@@ -67,6 +71,7 @@ InterCode newInterCode(enum InterCodeKind kind, Operand op1, Operand op2, Operan
 void insertInterCode(InterCode intercode);
 void insertOperand(Operand operand);
 Operand findOperand(char* name);
+Operand findStructure(char* name);
 
 void initIr();
 void IRProgram(treeNode* root);
@@ -76,6 +81,7 @@ void IRFunDec(treeNode* parent);
 void IRVarList(treeNode* parent);
 void IRParamDec(treeNode* parent);
 void IRFunctionVarDec(treeNode* parent);
+void IRCompSt(treeNode* parent);
 void IRDefList(treeNode* parent);
 void IRStmtList(treeNode* parent);
 void IRDef(treeNode* parent);
