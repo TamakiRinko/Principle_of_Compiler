@@ -1,5 +1,207 @@
 #include "ir.h"
 
+void printOperand(FILE* fp, Operand operand){
+    switch(operand->kind){
+        case VARIABLE:{
+            fprintf(fp, "v%d", operand->u.variable.var_num);
+            break;
+        }
+        case CONSTANT:{
+            fprintf(fp, "#%d", operand->u.const_value);
+            break;
+        }
+        case ADDRESS:{
+            fprintf(fp, "*v%d", operand->u.variable.var_num);
+            break;
+        }
+        case REFERENCE:{
+            fprintf(fp, "&v%d", operand->u.variable.var_num);
+            break;
+        }
+        case LABEL_OPERAND:{
+            fprintf(fp, "label%d", operand->u.variable);
+            break;
+        }
+        case FUNCTION_OPERAND:{
+            fprintf(fp, "%s", operand->u.name);
+            break;
+        }
+        case TEMPORARY_VARIABLE:{
+            fprintf(fp, "t%d", operand->u.num);
+            break;
+        }
+        default: break;
+    }
+}
+
+void printInterCode(){
+    FILE* fp = fopen("result", "w");
+    InterCode cur = inter_code_head->next;
+    while(cur->next != inter_code_head){
+        switch(cur->kind){
+            case LABEL_INTERCODE:{
+                fprintf(fp, "LABEL ");
+                printOperand(fp, cur->op1);
+                fprintf(fp, " :");
+                break;
+            }
+            case FUNCTION_INTERCODE:{
+                fprintf(fp, "FUNCTION ");
+                printOperand(fp, cur->op1);
+                fprintf(fp, " :");
+                break;
+            }
+            case ASSIGN:{
+                printOperand(fp, cur->result);
+                fprintf(fp, " := ");
+                printOperand(fp, cur->op1);
+                break;
+            }
+            case PLUS:{
+                printOperand(fp, cur->result);
+                fprintf(fp, " := ");
+                printOperand(fp, cur->op1);
+                fprintf(fp, " + ");
+                printOperand(fp, cur->op2);
+                break;
+            }
+            case MINUS:{
+                printOperand(fp, cur->result);
+                fprintf(fp, " := ");
+                printOperand(fp, cur->op1);
+                fprintf(fp, " - ");
+                printOperand(fp, cur->op2);
+                break;
+            }
+            case STAR:{
+                printOperand(fp, cur->result);
+                fprintf(fp, " := ");
+                printOperand(fp, cur->op1);
+                fprintf(fp, " * ");
+                printOperand(fp, cur->op2);
+                break;
+            }
+            case DIV:{
+                printOperand(fp, cur->result);
+                fprintf(fp, " := ");
+                printOperand(fp, cur->op1);
+                fprintf(fp, " / ");
+                printOperand(fp, cur->op2);
+                break;
+            }
+            case ADDR:{
+                break;
+            }
+            case LEFT_REF:{
+                break;
+            }
+            case RIGHT_REF:{
+                break;
+            }
+            case GOTO:{
+                fprintf(fp, "GOTO ");
+                printOperand(fp, cur->result);
+                break;
+            }
+            case JE:{
+                fprintf(fp, "IF ");
+                printOperand(fp, cur->op1);
+                fprintf(fp, " == ");
+                printOperand(fp, cur->op2);
+                fprintf(fp, " GOTO ");
+                printOperand(fp, cur->result);
+                break;
+            }
+            case JNE:{
+                fprintf(fp, "IF ");
+                printOperand(fp, cur->op1);
+                fprintf(fp, " != ");
+                printOperand(fp, cur->op2);
+                fprintf(fp, " GOTO ");
+                printOperand(fp, cur->result);
+                break;
+            }
+            case JA:{
+                fprintf(fp, "IF ");
+                printOperand(fp, cur->op1);
+                fprintf(fp, " > ");
+                printOperand(fp, cur->op2);
+                fprintf(fp, " GOTO ");
+                printOperand(fp, cur->result);
+                break;
+            }
+            case JAE:{
+                fprintf(fp, "IF ");
+                printOperand(fp, cur->op1);
+                fprintf(fp, " >= ");
+                printOperand(fp, cur->op2);
+                fprintf(fp, " GOTO ");
+                printOperand(fp, cur->result);
+                break;
+            }
+            case JB:{
+                fprintf(fp, "IF ");
+                printOperand(fp, cur->op1);
+                fprintf(fp, " < ");
+                printOperand(fp, cur->op2);
+                fprintf(fp, " GOTO ");
+                printOperand(fp, cur->result);
+                break;
+            }
+            case JBE:{
+                fprintf(fp, "IF ");
+                printOperand(fp, cur->op1);
+                fprintf(fp, " <= ");
+                printOperand(fp, cur->op2);
+                fprintf(fp, " GOTO ");
+                printOperand(fp, cur->result);
+                break;
+            }
+            case RETURN:{
+                fprintf(fp, "RETURN ");
+                printOperand(fp, cur->op1);
+                break;
+            }
+            case DEC:{
+                fprintf(fp, "DEC ");
+                printOperand(fp, cur->op1);
+                fprintf(fp, " %d", cur->op2->u.const_value);
+                break;
+            }
+            case ARG:{
+                fprintf(fp, "ARG ");
+                printOperand(fp, cur->result);
+                break;
+            }
+            case CALL:{
+                printOperand(fp, cur->result);
+                fprintf(fp, " := CALL ");
+                printOperand(fp, cur->op1);
+                break;
+            }
+            case PARAM:{
+                fprintf(fp, "PARAM ");
+                printOperand(fp, cur->op1);
+                break;
+            }
+            case READ:{
+                fprintf(fp, "READ ");
+                printOperand(fp, cur->result);
+                break;
+            }
+            case WRITE:{
+                fprintf(fp, "WRITE ");
+                printOperand(fp, cur->result);
+                break;
+            }
+            default: break;
+        }
+        fprintf(fp, "\n");
+        cur = cur->next;
+    }
+    fclose(fp);
+}
+
 int getTypeSize(Type type){
     // 基本类型，４字节
     if(type->kind == BASIC) return 4;
@@ -42,6 +244,7 @@ Operand newOperand(enum OperandKind kind, int num, char* name){
     result->kind = kind;
     result->next = NULL;
     switch (kind){
+        case ADDRESS:
         case VARIABLE:{
             // 一般变量
             result->u.variable.var_num = num;
@@ -52,7 +255,6 @@ Operand newOperand(enum OperandKind kind, int num, char* name){
             // 常量
             result->u.const_value = num;
         }
-        case ADDRESS:
         case FUNCTION_OPERAND:{
             // 变量地址
             result->u.name = getStr(name);
@@ -207,13 +409,14 @@ void IRFunctionVarDec(treeNode* parent){
         // 函数参数为数组
         IRERROR = 1;
         return;
-    }else if(type->kind == STRUCTURE){
-        // 结构体，传入的是地址
-        varOperand = newOperand(ADDRESS, var_num++, cur->text);
-    }else{
-        varOperand = newOperand(VARIABLE, var_num++, cur->text);
     }
-
+    // else if(type->kind == STRUCTURE){
+    //     // 结构体，传入的是地址
+    //     varOperand = newOperand(ADDRESS, var_num++, cur->text);
+    // }else{
+    //     varOperand = newOperand(VARIABLE, var_num++, cur->text);
+    // }
+    varOperand = newOperand(VARIABLE, var_num++, cur->text);
     // Operand varOperand = newOperand(VARIABLE, var_num++, cur->text);
     insertOperand(varOperand);
     InterCode varInterCode = newInterCode(PARAM, varOperand, NULL, NULL);

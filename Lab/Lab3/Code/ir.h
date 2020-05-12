@@ -57,6 +57,9 @@ int temp_var_num;
 int label_num;
 int IRERROR;
 
+void printOperand(FILE* fp, Operand operand);
+void printInterCode();
+
 int getTypeSize(Type type);
 
 Operand newOperand(enum OperandKind kind, int num, char* name);
