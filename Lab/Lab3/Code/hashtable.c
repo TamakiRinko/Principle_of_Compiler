@@ -136,7 +136,7 @@ int isEqual(Type t1, Type t2){
             return t1->u.basic == t2->u.basic;
         }
         case ARRAY:{
-            return (t1->u.array.size == t2->u.array.size && isEqual(t1->u.array.elem, t2->u.array.elem));
+            return (isEqual(t1->u.array.elem, t2->u.array.elem));
         }
         case STRUCTURE:{
             return (strcmp(t1->u.structure.name, t2->u.structure.name) == 0);

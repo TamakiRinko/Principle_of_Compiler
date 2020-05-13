@@ -11,7 +11,7 @@ typedef struct Operand_t* Operand;
 typedef struct InterCode_t* InterCode;
 typedef struct PointToOperand_ * PointToOperand;
 
-enum OperandKind { VARIABLE, CONSTANT, ADDRESS, REFERENCE, LABEL_OPERAND, FUNCTION_OPERAND, TEMPORARY_VARIABLE, TEMPORARY_ADDRESS };
+enum OperandKind { VARIABLE, CONSTANT, ADDRESS, REFERENCE, LABEL_OPERAND, FUNCTION_OPERAND, TEMPORARY_VARIABLE, TEMPORARY_ADDRESS, STRUCTURE_ARRAY };
 enum InterCodeKind { LABEL_INTERCODE, FUNCTION_INTERCODE, ASSIGN, PLUS, MINUS, STAR, DIV, 
             ADDR, LEFT_REF, RIGHT_REF, GOTO, JE, JNE, JA, JAE, JB, JBE, 
             RETURN, DEC, ARG, CALL, PARAM, READ, WRITE };
@@ -63,6 +63,7 @@ void printOperand(FILE* fp, Operand operand);
 void printInterCode();
 
 int haveMultiDimensionalArray();
+int isArray(Operand operand);
 
 int getTypeSize(Type type);
 

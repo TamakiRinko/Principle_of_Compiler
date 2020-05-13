@@ -35,6 +35,10 @@ void printOperand(FILE* fp, Operand operand){
             fprintf(fp, "*t%d", operand->u.num);
             break;
         }
+        case STRUCTURE_ARRAY:{
+            fprintf(fp, "t%d", operand->u.variable.var_num);
+            break;
+        }
         default: break;
     }
 }
@@ -230,6 +234,18 @@ int haveMultiDimensionalArray(){
     return 0;
 }
 
+int isArray(Operand operand){
+    if(operand->kind == VARIABLE){
+        Type leftType = getIDType(operand->u.variable.var_name);
+        if(leftType->kind == ARRAY){
+            return 1;
+        }
+    }else if(operand->kind == STRUCTURE_ARRAY){
+        return 1;
+    }
+    return 0;
+}
+
 int getTypeSize(Type type){
     // 基本类型，４字节
     if(type->kind == BASIC) return 4;
@@ -271,6 +287,7 @@ Operand newOperand(enum OperandKind kind, int num, char* name){
     result->kind = kind;
     result->next = NULL;
     switch (kind){
+        case STRUCTURE_ARRAY:
         case ADDRESS:
         case REFERENCE:
         case VARIABLE:{
@@ -361,7 +378,17 @@ int getStructureIndex(Type type, char* name){
         index += getTypeSize(cur->type);
         cur = cur->tail;
     }
-    return index;
+
+    FieldList cur2 = type->u.structure.fieldList;
+    int index2 = 0;
+    while(cur2 != NULL){
+        index2 += getTypeSize(cur2->type);
+        cur2 = cur2->tail;
+    }
+
+    int result = index2 - index - getTypeSize(cur->type);
+
+    return result;
 }
 
 void IRProgram(treeNode* root){
@@ -594,7 +621,7 @@ Operand IRVarDec(treeNode* parent){
         return NULL;
     }
     int size = getTypeSize(type);
-    printf("size = %d\n", size);
+    // printf("size = %d\n", size);
     Operand varOperand1 = newOperand(VARIABLE, var_num++, name);
     insertOperand(varOperand1);
     Operand varOperand2 = newOperand(CONSTANT, size, NULL);
@@ -639,10 +666,60 @@ Operand IRExp(treeNode* parent, Operand place){
                 if(strcmp(parent->firstChild->nextBrother->name, "ASSIGNOP") == 0){
                     // Exp: Exp ASSIGNOP Exp
                     Operand leftOperand = IRExp(parent->firstChild, NULL);
-                    IRExp(parent->firstChild->nextBrother->nextBrother, leftOperand);
-                    if(place != NULL){
-                        InterCode assignInterCode = newInterCode(ASSIGN, leftOperand, NULL, place);
-                        insertInterCode(assignInterCode);
+                    if(isArray(leftOperand)){
+                        // 数组赋值，右操作数返回值一定是数组
+                        Operand rightOperand = IRExp(parent->firstChild->nextBrother->nextBrother, NULL);
+                        // printf("leftName = %s, rightName = %s\n", leftOperand->u.variable.var_name, rightOperand->u.variable.var_name);
+                        Type leftType = getIDType(leftOperand->u.variable.var_name);
+                        Type rightType = getIDType(rightOperand->u.variable.var_name);
+                        int minSize = leftType->u.array.size > rightType->u.array.size ? rightType->u.array.size : leftType->u.array.size;
+                        int typeSize = getTypeSize(leftType->u.array.elem);
+                        // printf("minSize = %d, typeSize = %d\n", minSize, typeSize);
+                        Operand leftReferenceOperand;
+                        if(leftOperand->kind == STRUCTURE_ARRAY){
+                            // v1
+                            leftReferenceOperand = leftOperand;
+                        }else{
+                            // &v1
+                            leftReferenceOperand = newOperand(REFERENCE, leftOperand->u.variable.var_num, leftOperand->u.variable.var_name);
+                        }
+                        Operand rightReferenceOperand;
+                        if(rightOperand->kind == STRUCTURE_ARRAY){
+                            // v2
+                            rightReferenceOperand = rightOperand;
+                        }else{
+                            // &v2
+                            rightReferenceOperand = newOperand(REFERENCE, rightOperand->u.variable.var_num, rightOperand->u.variable.var_name);
+                        }
+                        for(int i = 0; i < minSize; ++i){
+                            // i * 4
+                            Operand leftIndexOperand = newOperand(CONSTANT, typeSize * i, NULL);
+                            // t1
+                            Operand leftResultOperand = newOperand(TEMPORARY_VARIABLE, temp_var_num++, NULL);
+                            // t1 = &v1/v1 + i * 4
+                            InterCode leftResultInterCode = newInterCode(PLUS, leftReferenceOperand, leftIndexOperand, leftResultOperand);
+                            // i * 4
+                            Operand rightIndexOperand = newOperand(CONSTANT, typeSize * i, NULL);
+                            // t2
+                            Operand rightResultOperand = newOperand(TEMPORARY_VARIABLE, temp_var_num++, NULL);
+                            // t2 = &v2/v2 + i * 4
+                            InterCode rightResultInterCode = newInterCode(PLUS, rightReferenceOperand, rightIndexOperand, rightResultOperand);
+                            insertInterCode(leftResultInterCode);
+                            insertInterCode(rightResultInterCode);
+                            // *t1
+                            Operand leftResultOperand2 = newOperand(TEMPORARY_ADDRESS, leftResultOperand->u.num, NULL);
+                            // *t2
+                            Operand rightResultOperand2 = newOperand(TEMPORARY_ADDRESS, rightResultOperand->u.num, NULL);
+                            // *t1 = *t2
+                            InterCode assignInterCode = newInterCode(ASSIGN, rightResultOperand2, NULL, leftResultOperand2);
+                            insertInterCode(assignInterCode);
+                        }
+                    }else{
+                        IRExp(parent->firstChild->nextBrother->nextBrother, leftOperand);
+                        if(place != NULL){
+                            InterCode assignInterCode = newInterCode(ASSIGN, leftOperand, NULL, place);
+                            insertInterCode(assignInterCode);
+                        }
                     }
                     return leftOperand;
                 }
@@ -699,10 +776,22 @@ Operand IRExp(treeNode* parent, Operand place){
                 // 数组不会有地址类型出现
                 // &v1
                 Operand arrayReferenceOperand = newOperand(REFERENCE, arrayOperand->u.variable.var_num, arrayOperand->u.variable.var_name);
-                // 4
-                Operand sizeOperand = newOperand(CONSTANT, size, NULL);
                 // i
                 Operand indexOperand = IRExp(parent->firstChild->nextBrother->nextBrother, NULL);
+                // 4
+                Operand sizeOperand;
+                if(indexOperand->kind == CONSTANT){
+                    // 下标为常数，直接加上
+                    int index = indexOperand->u.const_value * size;
+                    sizeOperand = newOperand(CONSTANT, index, NULL);
+                    Operand resultOperand = newOperand(TEMPORARY_VARIABLE, temp_var_num++, NULL);
+                    // t2 = &v1 + index
+                    InterCode resultInterCode = newInterCode(PLUS, arrayReferenceOperand, sizeOperand, resultOperand);
+                    insertInterCode(resultInterCode);
+                    Operand resultOperand2 = newOperand(TEMPORARY_ADDRESS, resultOperand->u.num, NULL);
+                    return resultOperand2;
+                }
+                sizeOperand = newOperand(CONSTANT, size, NULL);
                 // t1
                 Operand tempIndexOperand = newOperand(TEMPORARY_VARIABLE, temp_var_num++, NULL);
                 // t1 = i * 4
@@ -713,7 +802,8 @@ Operand IRExp(treeNode* parent, Operand place){
                 InterCode resultInterCode = newInterCode(PLUS, arrayReferenceOperand, tempIndexOperand, resultOperand);
                 insertInterCode(indexInterCode);
                 insertInterCode(resultInterCode);
-                return resultOperand;
+                Operand resultOperand2 = newOperand(TEMPORARY_ADDRESS, resultOperand->u.num, NULL);
+                return resultOperand2;
             }
         }else{
             // Exp: Exp DOT ID
@@ -747,8 +837,15 @@ Operand IRExp(treeNode* parent, Operand place){
             }
             // printf("4\n");
             insertInterCode(resultInterCode);
-            Operand resultOperand2 = newOperand(TEMPORARY_ADDRESS, resultOperand->u.num, NULL);
-            return resultOperand2;
+            Type type1 = getIDType(parent->firstChild->nextBrother->nextBrother->text);
+            if(type1->kind == ARRAY){
+                // 结构体域为数组，参与数组赋值
+                Operand resultOperand2 = newOperand(STRUCTURE_ARRAY, resultOperand->u.num, parent->firstChild->nextBrother->nextBrother->text);
+                return resultOperand2;
+            }else{
+                Operand resultOperand2 = newOperand(TEMPORARY_ADDRESS, resultOperand->u.num, NULL);
+                return resultOperand2;
+            }
         }
     }else if(strcmp(parent->firstChild->name, "MINUS") == 0){
         // Exp: MINUS Exp
@@ -946,7 +1043,7 @@ PointToOperand IRArgs(treeNode* parent){
     treeNode* cur = parent->firstChild;
     PointToOperand arg_list = (PointToOperand)malloc(sizeof(struct PointToOperand_));
     arg_list->next = NULL;
-    PointToOperand cur_list = arg_list;
+    // PointToOperand cur_list = arg_list;
     while(cur->nextBrother != NULL){
         PointToOperand point = (PointToOperand)malloc(sizeof(struct PointToOperand_));
         point->point = IRExp(cur, NULL);
@@ -958,9 +1055,11 @@ PointToOperand IRArgs(treeNode* parent){
                 point->point = structureReferenceOperand;
             }
         }
-        point->next = cur_list->next;
-        cur_list->next = point;
-        cur_list = cur_list->next;
+        point->next = arg_list->next;
+        arg_list->next = point;
+        // point->next = cur_list->next;
+        // cur_list->next = point;
+        // cur_list = cur_list->next;
         cur = cur->nextBrother->nextBrother->firstChild;
     }
     PointToOperand point = (PointToOperand)malloc(sizeof(struct PointToOperand_));
@@ -973,8 +1072,10 @@ PointToOperand IRArgs(treeNode* parent){
             point->point = structureReferenceOperand;
         }
     }
-    point->next = cur_list->next;
-    cur_list->next = point;
-    cur_list = cur_list->next;
+    point->next = arg_list->next;
+    arg_list->next = point;
+    // point->next = cur_list->next;
+    // cur_list->next = point;
+    // cur_list = cur_list->next;
     return arg_list;
 }
