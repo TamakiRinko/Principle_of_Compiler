@@ -54,7 +54,7 @@ void printInterCode(){
     // printf("num = %d\n", num);
 
 
-    FILE* fp = fopen("result", "w");
+    FILE* fp = fopen("../Result/8Lab3Hard.1.ir", "w");
     InterCode cur = inter_code_head->next;
     while(cur != inter_code_head){
         switch(cur->kind){
@@ -487,7 +487,9 @@ void IRFunctionVarDec(treeNode* parent){
     if(type == NULL)    return;
     if(type->kind == ARRAY){
         // 函数参数为数组
+        printf("Cannot translate: Code contains variables of multi-dimensional array type or parameters of array type.\n");
         IRERROR = 1;
+        exit(0);
         return;
     }else if(type->kind == STRUCTURE){
         // 结构体，传入的是地址
@@ -752,30 +754,59 @@ Operand IRExp(treeNode* parent, Operand place){
                     Operand leftOperand = IRExp(parent->firstChild, NULL);
                     Operand rightOperand = IRExp(parent->firstChild->nextBrother->nextBrother, NULL);
                     InterCode operationsInterCode = NULL;
-                    if(strcmp(parent->firstChild->nextBrother->name, "PLUS") == 0){
-                        operationsInterCode = newInterCode(PLUS, leftOperand, rightOperand, place);
-                    }else if(strcmp(parent->firstChild->nextBrother->name, "MINUS") == 0){
-                        operationsInterCode = newInterCode(MINUS, leftOperand, rightOperand, place);
-                    }else if(strcmp(parent->firstChild->nextBrother->name, "STAR") == 0){
-                        operationsInterCode = newInterCode(STAR, leftOperand, rightOperand, place);
-                    }else if(strcmp(parent->firstChild->nextBrother->name, "DIV") == 0){
-                        operationsInterCode = newInterCode(DIV, leftOperand, rightOperand, place);
+
+                    if(place->kind == TEMPORARY_ADDRESS){
+                        // 左边数组或结构体
+                        // Operand place2 = newOperand(TEMPORARY_VARIABLE, place->u.variable.var_num, NULL);
+                        Operand tempOperand = newOperand(TEMPORARY_VARIABLE, temp_var_num++, NULL);
+
+                        if(strcmp(parent->firstChild->nextBrother->name, "PLUS") == 0){
+                            operationsInterCode = newInterCode(PLUS, leftOperand, rightOperand, tempOperand);
+                        }else if(strcmp(parent->firstChild->nextBrother->name, "MINUS") == 0){
+                            operationsInterCode = newInterCode(MINUS, leftOperand, rightOperand, tempOperand);
+                        }else if(strcmp(parent->firstChild->nextBrother->name, "STAR") == 0){
+                            operationsInterCode = newInterCode(STAR, leftOperand, rightOperand, tempOperand);
+                        }else if(strcmp(parent->firstChild->nextBrother->name, "DIV") == 0){
+                            operationsInterCode = newInterCode(DIV, leftOperand, rightOperand, tempOperand);
+                        }
+                        insertInterCode(operationsInterCode);
+
+                        InterCode assignInterCode = newInterCode(ASSIGN, tempOperand, NULL, place);
+                        insertInterCode(assignInterCode);
+                    }else{
+                        if(strcmp(parent->firstChild->nextBrother->name, "PLUS") == 0){
+                            operationsInterCode = newInterCode(PLUS, leftOperand, rightOperand, place);
+                        }else if(strcmp(parent->firstChild->nextBrother->name, "MINUS") == 0){
+                            operationsInterCode = newInterCode(MINUS, leftOperand, rightOperand, place);
+                        }else if(strcmp(parent->firstChild->nextBrother->name, "STAR") == 0){
+                            operationsInterCode = newInterCode(STAR, leftOperand, rightOperand, place);
+                        }else if(strcmp(parent->firstChild->nextBrother->name, "DIV") == 0){
+                            operationsInterCode = newInterCode(DIV, leftOperand, rightOperand, place);
+                        }
+                        insertInterCode(operationsInterCode);
                     }
-                    insertInterCode(operationsInterCode);
                     return place;
                 }
             }else{
                 // Exp: Exp LB Exp RB
                 // a[i] = j
                 // a
-                Type arrayType = getIDType(parent->firstChild->firstChild->text);     // 一定是一维数组
+                // Type arrayType = getIDType(parent->firstChild->firstChild->text);     // 一定是一维数组
+                Operand firstOperand = IRExp(parent->firstChild, NULL);
+                Type arrayType = getIDType(firstOperand->u.variable.var_name);
                 // 4
                 int size = getTypeSize(arrayType->u.array.elem);
                 // v1
-                Operand arrayOperand = findOperand(parent->firstChild->firstChild->text);
+                // Operand arrayOperand = findOperand(parent->firstChild->firstChild->text);
+                Operand arrayOperand = firstOperand;
                 // 数组不会有地址类型出现
                 // &v1
-                Operand arrayReferenceOperand = newOperand(REFERENCE, arrayOperand->u.variable.var_num, arrayOperand->u.variable.var_name);
+                Operand arrayReferenceOperand;
+                if(firstOperand->kind == STRUCTURE_ARRAY){
+                    arrayReferenceOperand = firstOperand;
+                }else{
+                    arrayReferenceOperand = newOperand(REFERENCE, arrayOperand->u.variable.var_num, arrayOperand->u.variable.var_name);
+                }
                 // i
                 Operand indexOperand = IRExp(parent->firstChild->nextBrother->nextBrother, NULL);
                 // 4
@@ -789,6 +820,10 @@ Operand IRExp(treeNode* parent, Operand place){
                     InterCode resultInterCode = newInterCode(PLUS, arrayReferenceOperand, sizeOperand, resultOperand);
                     insertInterCode(resultInterCode);
                     Operand resultOperand2 = newOperand(TEMPORARY_ADDRESS, resultOperand->u.num, NULL);
+                    if(place != NULL){
+                        InterCode assignInterCode = newInterCode(ASSIGN, resultOperand2, NULL, place);
+                        insertInterCode(assignInterCode);
+                    }
                     return resultOperand2;
                 }
                 sizeOperand = newOperand(CONSTANT, size, NULL);
@@ -803,6 +838,11 @@ Operand IRExp(treeNode* parent, Operand place){
                 insertInterCode(indexInterCode);
                 insertInterCode(resultInterCode);
                 Operand resultOperand2 = newOperand(TEMPORARY_ADDRESS, resultOperand->u.num, NULL);
+
+                if(place != NULL){
+                    InterCode assignInterCode = newInterCode(ASSIGN, resultOperand2, NULL, place);
+                    insertInterCode(assignInterCode);
+                }
                 return resultOperand2;
             }
         }else{
@@ -839,11 +879,16 @@ Operand IRExp(treeNode* parent, Operand place){
             insertInterCode(resultInterCode);
             Type type1 = getIDType(parent->firstChild->nextBrother->nextBrother->text);
             if(type1->kind == ARRAY){
-                // 结构体域为数组，参与数组赋值
+                // 结构体域为数组
                 Operand resultOperand2 = newOperand(STRUCTURE_ARRAY, resultOperand->u.num, parent->firstChild->nextBrother->nextBrother->text);
                 return resultOperand2;
             }else{
                 Operand resultOperand2 = newOperand(TEMPORARY_ADDRESS, resultOperand->u.num, NULL);
+                if(place != NULL){
+                    // 处于等式右边，需赋值
+                    InterCode assignInterCode = newInterCode(ASSIGN, resultOperand2, NULL, place);
+                    insertInterCode(assignInterCode);
+                }
                 return resultOperand2;
             }
         }
@@ -854,8 +899,16 @@ Operand IRExp(treeNode* parent, Operand place){
             place = newOperand(TEMPORARY_VARIABLE, temp_var_num++, NULL);
         }
         Operand zeroOperand = newOperand(CONSTANT, 0, NULL);
-        InterCode minusInterCode = newInterCode(MINUS, zeroOperand, minusOperand, place);
-        insertInterCode(minusInterCode);
+        if(place->kind == TEMPORARY_ADDRESS){
+            Operand tempOperand = newOperand(TEMPORARY_VARIABLE, temp_var_num++, NULL);
+            InterCode minusInterCode = newInterCode(MINUS, zeroOperand, minusOperand, tempOperand);
+            insertInterCode(minusInterCode);
+            InterCode assignInterCode = newInterCode(ASSIGN, tempOperand, NULL, place);
+            insertInterCode(assignInterCode);
+        }else{
+            InterCode minusInterCode = newInterCode(MINUS, zeroOperand, minusOperand, place);
+            insertInterCode(minusInterCode);
+        }
         return place;
     }else if(strcmp(parent->firstChild->name, "NOT") == 0){
         // Exp: NOT Exp
@@ -898,8 +951,20 @@ Operand IRExp(treeNode* parent, Operand place){
                 cur = cur->next;
             }
             Operand functionOperand = findOperand(parent->firstChild->text);
-            InterCode callInterCode = newInterCode(CALL, functionOperand, NULL, place);
-            insertInterCode(callInterCode);
+            if(place->kind == TEMPORARY_ADDRESS){
+                // 返回值是数组元素或结构体域
+                // Operand place2 = newOperand(TEMPORARY_VARIABLE, place->u.variable.var_num, NULL);
+                Operand tempOperand = newOperand(TEMPORARY_VARIABLE, temp_var_num++, NULL);
+                // read t1
+                InterCode callInterCode = newInterCode(CALL, functionOperand, NULL, tempOperand);
+                insertInterCode(callInterCode);
+                // *t2 = t1
+                InterCode assignInterCode = newInterCode(ASSIGN, tempOperand, NULL, place);
+                insertInterCode(assignInterCode);
+            }else{
+                InterCode callInterCode = newInterCode(CALL, functionOperand, NULL, place);
+                insertInterCode(callInterCode);
+            }
             return place;
         }
     }else{
@@ -909,13 +974,37 @@ Operand IRExp(treeNode* parent, Operand place){
         }
         // read
         if(strcmp(parent->firstChild->text, "read") == 0){
-            InterCode readInterCode = newInterCode(READ, NULL, NULL, place);
-            insertInterCode(readInterCode);
+            if(place->kind == TEMPORARY_ADDRESS){
+                // 读入数组或结构体
+                // Operand place2 = newOperand(TEMPORARY_VARIABLE, place->u.variable.var_num, NULL);
+                Operand tempOperand = newOperand(TEMPORARY_VARIABLE, temp_var_num++, NULL);
+                // read t1
+                InterCode readInterCode = newInterCode(READ, NULL, NULL, tempOperand);
+                insertInterCode(readInterCode);
+                // *t2 = t1
+                InterCode assignInterCode = newInterCode(ASSIGN, tempOperand, NULL, place);
+                insertInterCode(assignInterCode);
+            }else{
+                InterCode readInterCode = newInterCode(READ, NULL, NULL, place);
+                insertInterCode(readInterCode);
+            }
             return place;
         }
         Operand functionOperand = findOperand(parent->firstChild->text);
-        InterCode callInterCode = newInterCode(CALL, functionOperand, NULL, place);
-        insertInterCode(callInterCode);
+        if(place->kind == TEMPORARY_ADDRESS){
+            // 返回值是数组元素或结构体域
+            // Operand place2 = newOperand(TEMPORARY_VARIABLE, place->u.variable.var_num, NULL);
+            Operand tempOperand = newOperand(TEMPORARY_VARIABLE, temp_var_num++, NULL);
+            // read t1
+            InterCode callInterCode = newInterCode(CALL, functionOperand, NULL, tempOperand);
+            insertInterCode(callInterCode);
+            // *t2 = t1
+            InterCode assignInterCode = newInterCode(ASSIGN, tempOperand, NULL, place);
+            insertInterCode(assignInterCode);
+        }else{
+            InterCode callInterCode = newInterCode(CALL, functionOperand, NULL, place);
+            insertInterCode(callInterCode);
+        }
         return place;
     }
 }

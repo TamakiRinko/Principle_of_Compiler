@@ -16,7 +16,7 @@ enum Kind { BASIC, ARRAY, STRUCTURE, FUNCTION, STRUCTURETYPE };
 
 int structureId;
 
-Symbol symbolTable[TABLE_NUM];
+Symbol symbolTable[TABLE_NUM + 1];
 
 struct Type_{
     enum Kind kind;
