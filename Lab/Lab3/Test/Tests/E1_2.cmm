@@ -1,0 +1,19 @@
+struct Product{
+	int type[10];
+	int name[10];
+};
+
+struct Cola{
+	int price[10];
+	int sold[10];
+};
+
+int main(){
+	int a[10];
+	int result;
+	a[1] = 2;
+	a[2] = a[1];
+	result = a[1];
+	write(result);
+	return 0;
+}

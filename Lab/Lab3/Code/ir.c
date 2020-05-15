@@ -35,7 +35,8 @@ void printOperand(FILE* fp, Operand operand){
             fprintf(fp, "*t%d", operand->u.num);
             break;
         }
-        case STRUCTURE_ARRAY:{
+        case STRUCTURE_ARRAY:
+        case STRUCTURE_STRUCTURE:{
             fprintf(fp, "t%d", operand->u.variable.var_num);
             break;
         }
@@ -54,7 +55,7 @@ void printInterCode(){
     // printf("num = %d\n", num);
 
 
-    FILE* fp = fopen("../Result/8Lab3Hard.1.ir", "w");
+    FILE* fp = fopen("../Result/A_1.ir", "w");
     InterCode cur = inter_code_head->next;
     while(cur != inter_code_head){
         switch(cur->kind){
@@ -222,7 +223,7 @@ void printInterCode(){
 }
 
 int haveMultiDimensionalArray(){
-    for(int i = 0; i < TABLE_NUM; ++i){
+    for(int i = 0; i < TABLE_NUM + 1; ++i){
         Symbol cur = symbolTable[i];
         while (cur != NULL){
             if(cur->type->kind == ARRAY && cur->type->u.array.elem->kind == ARRAY){
@@ -242,6 +243,16 @@ int isArray(Operand operand){
         }
     }else if(operand->kind == STRUCTURE_ARRAY){
         return 1;
+    }
+    return 0;
+}
+
+int isStructure(Operand operand){
+    if(operand->kind == VARIABLE || operand->kind == STRUCTURE_ARRAY){
+        Type leftType = getIDType(operand->u.variable.var_name);
+        if(leftType->kind == ARRAY && leftType->u.array.elem->kind == STRUCTURE){
+            return 1;
+        }
     }
     return 0;
 }
@@ -287,6 +298,7 @@ Operand newOperand(enum OperandKind kind, int num, char* name){
     result->kind = kind;
     result->next = NULL;
     switch (kind){
+        case STRUCTURE_STRUCTURE:
         case STRUCTURE_ARRAY:
         case ADDRESS:
         case REFERENCE:
@@ -338,6 +350,19 @@ void insertInterCode(InterCode intercode){
     inter_code_tail = inter_code_tail->next;
 }
 
+// 在place后插入target
+void insertAfter(InterCode target, InterCode place){
+    target->next = place->next;
+    place->next->prev = target;
+    target->prev = place;
+    place->next = target;
+}
+
+void deleteInterCode(InterCode intercode){
+    intercode->prev->next = intercode->next;
+    intercode->next->prev = intercode->prev;
+}
+
 void insertOperand(Operand operand){
     operand->next = operand_tail->next;
     operand_tail->next = operand;
@@ -347,7 +372,7 @@ void insertOperand(Operand operand){
 Operand findOperand(char* name){
     Operand cur = operand_head->next;
     while (cur != NULL){
-        if(cur->kind == VARIABLE && strcmp(cur->u.variable.var_name, name) == 0){
+        if((cur->kind == VARIABLE || cur->kind == ADDRESS) && strcmp(cur->u.variable.var_name, name) == 0){
             return cur;
         }else if(cur->kind == FUNCTION_OPERAND && strcmp(cur->u.name, name) == 0){
             return cur;
@@ -387,7 +412,6 @@ int getStructureIndex(Type type, char* name){
     }
 
     int result = index2 - index - getTypeSize(cur->type);
-
     return result;
 }
 
@@ -397,13 +421,13 @@ void IRProgram(treeNode* root){
 #endif
     if(root == NULL)    return;
     initIr();
-
     if(haveMultiDimensionalArray()){
         printf("Cannot translate: Code contains variables of multi-dimensional array type or parameters of array type.\n");
         return;
     }
-
     IRExtDefList(root->firstChild);
+    changed = 0;
+    irOptimise();
     printInterCode();
 }
 
@@ -803,6 +827,7 @@ Operand IRExp(treeNode* parent, Operand place){
                 // &v1
                 Operand arrayReferenceOperand;
                 if(firstOperand->kind == STRUCTURE_ARRAY){
+                    // 结构体中的数组，直接当做地址
                     arrayReferenceOperand = firstOperand;
                 }else{
                     arrayReferenceOperand = newOperand(REFERENCE, arrayOperand->u.variable.var_num, arrayOperand->u.variable.var_name);
@@ -820,7 +845,10 @@ Operand IRExp(treeNode* parent, Operand place){
                     InterCode resultInterCode = newInterCode(PLUS, arrayReferenceOperand, sizeOperand, resultOperand);
                     insertInterCode(resultInterCode);
                     Operand resultOperand2 = newOperand(TEMPORARY_ADDRESS, resultOperand->u.num, NULL);
-                    if(place != NULL){
+                    if(isStructure(firstOperand)){
+                        resultOperand2 = newOperand(STRUCTURE_STRUCTURE, resultOperand->u.num, firstOperand->u.variable.var_name);
+                    }
+                    else if(place != NULL){
                         InterCode assignInterCode = newInterCode(ASSIGN, resultOperand2, NULL, place);
                         insertInterCode(assignInterCode);
                     }
@@ -839,7 +867,11 @@ Operand IRExp(treeNode* parent, Operand place){
                 insertInterCode(resultInterCode);
                 Operand resultOperand2 = newOperand(TEMPORARY_ADDRESS, resultOperand->u.num, NULL);
 
-                if(place != NULL){
+                if(isStructure(firstOperand)){
+                    resultOperand2 = newOperand(STRUCTURE_STRUCTURE, resultOperand->u.num, firstOperand->u.variable.var_name);
+                }
+                // 结构体之间不会赋值
+                else if(place != NULL){
                     InterCode assignInterCode = newInterCode(ASSIGN, resultOperand2, NULL, place);
                     insertInterCode(assignInterCode);
                 }
@@ -847,42 +879,77 @@ Operand IRExp(treeNode* parent, Operand place){
             }
         }else{
             // Exp: Exp DOT ID
-            treeNode* cur = parent->firstChild;
+            // treeNode* cur = parent->firstChild;
             int index = 0;
-            while(strcmp(cur->firstChild->name, "Exp") == 0){
-                Type type = getIDType(cur->firstChild->nextBrother->nextBrother->text);
-                index += getStructureIndex(type, cur->nextBrother->nextBrother->text);
-                cur = cur->firstChild;
+            // while(strcmp(cur->firstChild->name, "Exp") == 0){
+            //     Type type = getIDType(cur->firstChild->nextBrother->nextBrother->text);
+            //     index += getStructureIndex(type, cur->nextBrother->nextBrother->text);
+            //     cur = cur->firstChild;
+            // }
+            // printf("parent firstChild name = %s\n", parent->firstChild->text);
+            Operand firstOperand = IRExp(parent->firstChild, NULL);
+            Type type = getIDType(firstOperand->u.variable.var_name);
+            // printf("type = %d, text = %s\n", type->kind, parent->firstChild->nextBrother->nextBrother->text);
+            if(type->kind == ARRAY){
+                // 结构体数组，得到ARRAY，需要使用elem拿到结构体类型
+                index = getStructureIndex(type->u.array.elem, parent->firstChild->nextBrother->nextBrother->text);
+            }else{
+                index = getStructureIndex(type, parent->firstChild->nextBrother->nextBrother->text);
             }
-            Type type = getIDType(cur->firstChild->text);
-            index += getStructureIndex(type, cur->nextBrother->nextBrother->text);
-            // v1
-            Operand structureOperand = findStructure(cur->firstChild->text);
+            // id在Exp中的偏移量
             Operand indexOperand = newOperand(CONSTANT, index, NULL);
             Operand resultOperand = newOperand(TEMPORARY_VARIABLE, temp_var_num++, NULL);
-            InterCode resultInterCode = NULL;
-            // if(structureOperand == NULL){
-            //     printf("null!\n");
-            // }
-            if(structureOperand->kind == VARIABLE){
-                // 普通结构体使用，&v1
-                // printf("2\n");
-                Operand structureReferenceOperand = newOperand(REFERENCE, structureOperand->u.variable.var_num, structureOperand->u.variable.var_name);
-                resultInterCode = newInterCode(PLUS, structureReferenceOperand, indexOperand, resultOperand);
-            }else if(structureOperand->kind == ADDRESS){
-                // 参数结构体引用, v1
-                // printf("3\n");
-                Operand structureReferenceOperand = newOperand(VARIABLE, structureOperand->u.variable.var_num, structureOperand->u.variable.var_name);
-                resultInterCode = newInterCode(PLUS, structureReferenceOperand, indexOperand, resultOperand);
+            if(firstOperand->kind == STRUCTURE_STRUCTURE){
+                // 结构体中的结构体
+                InterCode indexInterCode = newInterCode(PLUS, firstOperand, indexOperand, resultOperand);
+                insertInterCode(indexInterCode);
+            }else if(firstOperand->kind == VARIABLE){
+                // 普通结构体
+                Operand structureReferenceOperand = newOperand(REFERENCE, firstOperand->u.variable.var_num, firstOperand->u.variable.var_name);
+                InterCode indexInterCode = newInterCode(PLUS, structureReferenceOperand, indexOperand, resultOperand);
+                insertInterCode(indexInterCode);
+            }else if(firstOperand->kind == ADDRESS){
+                // 参数结构体
+                Operand structureReferenceOperand = newOperand(VARIABLE, firstOperand->u.variable.var_num, firstOperand->u.variable.var_name);
+                InterCode indexInterCode = newInterCode(PLUS, structureReferenceOperand, indexOperand, resultOperand);
+                insertInterCode(indexInterCode);
             }
-            // printf("4\n");
-            insertInterCode(resultInterCode);
+
+            // Type type = getIDType(cur->firstChild->text);
+            // index += getStructureIndex(type, cur->nextBrother->nextBrother->text);
+            // // v1
+            // Operand structureOperand = findStructure(cur->firstChild->text);
+            
+            // Operand resultOperand = newOperand(TEMPORARY_VARIABLE, temp_var_num++, NULL);
+            // InterCode resultInterCode = NULL;
+            // // if(structureOperand == NULL){
+            // //     printf("null!\n");
+            // // }
+            // if(structureOperand->kind == VARIABLE){
+            //     // 普通结构体使用，&v1
+            //     // printf("2\n");
+            //     Operand structureReferenceOperand = newOperand(REFERENCE, structureOperand->u.variable.var_num, structureOperand->u.variable.var_name);
+            //     resultInterCode = newInterCode(PLUS, structureReferenceOperand, indexOperand, resultOperand);
+            // }else if(structureOperand->kind == ADDRESS){
+            //     // 参数结构体引用, v1
+            //     // printf("3\n");
+            //     Operand structureReferenceOperand = newOperand(VARIABLE, structureOperand->u.variable.var_num, structureOperand->u.variable.var_name);
+            //     resultInterCode = newInterCode(PLUS, structureReferenceOperand, indexOperand, resultOperand);
+            // }
+            // // printf("4\n");
+            // insertInterCode(resultInterCode);
             Type type1 = getIDType(parent->firstChild->nextBrother->nextBrother->text);
             if(type1->kind == ARRAY){
                 // 结构体域为数组
                 Operand resultOperand2 = newOperand(STRUCTURE_ARRAY, resultOperand->u.num, parent->firstChild->nextBrother->nextBrother->text);
                 return resultOperand2;
-            }else{
+            }
+            else if(type1->kind == STRUCTURE){
+                Operand resultOperand2 = newOperand(STRUCTURE_STRUCTURE, resultOperand->u.num, parent->firstChild->nextBrother->nextBrother->text);
+                return resultOperand2;
+            }
+            
+            else{
                 Operand resultOperand2 = newOperand(TEMPORARY_ADDRESS, resultOperand->u.num, NULL);
                 if(place != NULL){
                     // 处于等式右边，需赋值
@@ -1167,4 +1234,141 @@ PointToOperand IRArgs(treeNode* parent){
     // cur_list->next = point;
     // cur_list = cur_list->next;
     return arg_list;
+}
+
+
+void irOptimise(){
+    computeConstant();
+    replaceTempAssignConstant();
+    reverseIf();
+}
+
+// 加减乘除中的常数直接结算
+void computeConstant(){
+    InterCode cur = inter_code_head->next;
+    while(cur != inter_code_head){
+        if(cur->kind == PLUS || cur->kind == MINUS || cur->kind == STAR || cur->kind == DIV){
+            if(cur->op1->kind == CONSTANT && cur->op2->kind == CONSTANT){
+                int op1Value = cur->op1->u.const_value;
+                int op2Value = cur->op2->u.const_value;
+                int resultValue = 0;
+                switch(cur->kind){
+                    case PLUS:{
+                        resultValue = op1Value + op2Value;
+                        break;
+                    }
+                    case MINUS:{
+                        resultValue = op1Value - op2Value;
+                        break;
+                    }
+                    case STAR:{
+                        resultValue = op1Value * op2Value;
+                        break;
+                    }
+                    case DIV:{
+                        resultValue = op1Value / op2Value;
+                        break;
+                    }
+                    default: break;
+                }
+                if(cur->result->kind == TEMPORARY_VARIABLE){
+                    // 左边为临时变量，将后续该临时变量都替换为常数，并删除该InterCode
+                    replaceTempConstant(cur->next, cur->result->u.num, resultValue);
+                    InterCode temp = cur->prev;
+                    deleteInterCode(cur);
+                    cur = temp;
+                    changed = 1;
+                }else{
+                    Operand resultOperand = newOperand(CONSTANT, resultValue, NULL);
+                    cur->kind = ASSIGN;
+                    cur->op1 = resultOperand;
+                    cur->op2 = NULL;
+                    changed = 1;
+                }
+            }
+        }
+        cur = cur->next;
+    }
+}
+
+// 替换是常量的临时变量
+void replaceTempConstant(InterCode start, int temp_num, int const_value){
+    InterCode cur = start;
+    while(cur != inter_code_head){
+        if(cur->op1 != NULL && cur->op1->kind == TEMPORARY_VARIABLE && cur->op1->u.num == temp_num){
+            cur->op1->kind = CONSTANT;
+            cur->op1->u.const_value = const_value;
+        }
+        if(cur->op2 != NULL && cur->op2->kind == TEMPORARY_VARIABLE && cur->op2->u.num == temp_num){
+            cur->op2->kind = CONSTANT;
+            cur->op2->u.const_value = const_value;
+        }
+        cur = cur->next;
+    }
+}
+
+void replaceTempAssignConstant(){
+    InterCode cur = inter_code_head->next;
+    while(cur != inter_code_head){
+        if(cur->kind == ASSIGN){
+            if(cur->result->kind == TEMPORARY_VARIABLE && cur->op1->kind == CONSTANT){
+                replaceTempConstant(cur->next, cur->result->u.num, cur->op1->u.const_value);
+                InterCode temp = cur->prev;
+                deleteInterCode(cur);
+                cur = temp;
+            }
+        }
+        cur = cur->next;
+    }
+}
+
+void reverseIf(){
+    InterCode cur = inter_code_head->next;
+    while(cur != inter_code_head){
+        if(cur->kind == JE || cur->kind == JNE || cur->kind == JA || cur->kind == JAE || cur->kind == JB || cur->kind == JBE){
+            // IF x relop y GOTO Label1
+            // GOTO Label2
+            // Label1:
+            if(cur->next != inter_code_head && cur->next->kind == GOTO && cur->next->next != inter_code_head && cur->next->next->kind == LABEL_INTERCODE){
+                if(cur->result->u.num == cur->next->next->op1->u.num){
+                    InterCode reverseInterCode;
+                    Operand label2Operand = newOperand(LABEL_OPERAND, cur->next->result->u.num, NULL);
+                    switch(cur->kind){
+                        case JE:{
+                            reverseInterCode = newInterCode(JNE, cur->op1, cur->op2, label2Operand);
+                            break;
+                        }
+                        case JNE:{
+                            reverseInterCode = newInterCode(JE, cur->op1, cur->op2, label2Operand);
+                            break;
+                        }
+                        case JA:{
+                            reverseInterCode = newInterCode(JBE, cur->op1, cur->op2, label2Operand);
+                            break;
+                        }
+                        case JAE:{
+                            reverseInterCode = newInterCode(JB, cur->op1, cur->op2, label2Operand);
+                            break;
+                        }
+                        case JB:{
+                            reverseInterCode = newInterCode(JAE, cur->op1, cur->op2, label2Operand);
+                            break;
+                        }
+                        case JBE:{
+                            reverseInterCode = newInterCode(JA, cur->op1, cur->op2, label2Operand);
+                            break;
+                        }
+                    }
+                    InterCode temp = cur->prev;
+                    deleteInterCode(temp->next);
+                    deleteInterCode(temp->next);
+                    deleteInterCode(temp->next);
+                    insertAfter(reverseInterCode, temp);
+                    cur = reverseInterCode;
+                }
+            }
+            
+        }
+        cur = cur->next;
+    }
 }

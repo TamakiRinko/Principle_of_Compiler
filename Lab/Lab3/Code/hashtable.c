@@ -171,7 +171,7 @@ void initSymbolTable(){
 #ifdef print_lab_2
     printf("initSymbolTable\n");
 #endif
-    for(int i = 0; i < TABLE_NUM; ++i){
+    for(int i = 0; i < TABLE_NUM + 1; ++i){
         symbolTable[i] = NULL;
     }
 
@@ -265,7 +265,7 @@ void checkDef(){
 #ifdef print_lab_2
     printf("checkDef\n");
 #endif
-    for(int i = 0; i < TABLE_NUM; ++i){
+    for(int i = 0; i < TABLE_NUM + 1; ++i){
         Symbol cur = symbolTable[i];
         while (cur != NULL){
             if(cur->type->kind == FUNCTION && cur->type->u.function->isDefined == 0){
