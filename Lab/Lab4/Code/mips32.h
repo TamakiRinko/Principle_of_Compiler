@@ -44,6 +44,7 @@ struct RegDescriptor_t{
     int isConst;
 };
 
+int indexArray[3];
 struct RegDescriptor_t regDescriptor[32];
 FunctionBlock function_block_head;
 FunctionBlock function_block_tail;
@@ -59,6 +60,7 @@ void blocking();
 int isFree(int index);
 void translateToMisp32(char* output);
 void initBlock();
+void generateMips32(FILE* fp);
 LocalVariable newLocalVariable(Operand operand, int offset);
 FunctionBlock newFunctionBlock(BasicBlock begin);
 BasicBlock newBasicBlock(InterCode begin);
@@ -70,8 +72,12 @@ void addToStack(FunctionBlock functionBlock, Operand operand, int lineNo);
 void addUseLine(LocalVariable localVariable, int lineNo);
 int equalOperand(Operand op1, Operand op2);
 
-char* getReg(FILE* fp, Operand operand, FunctionBlock functionBlock, BasicBlock basicBlock, int lineNo);
+int getReg(FILE* fp, Operand operand, FunctionBlock functionBlock, BasicBlock basicBlock, int lineNo);
 int overrideReg(FILE* fp, int curLineNo, int endLineNo);
+void saveAllRegs(FILE* fp);
 LocalVariable findLocalVariable(Operand operand, FunctionBlock functionBlock);
+void freeRegs(FILE* fp, int lineNo, BasicBlock curBasic);
+
+void freeVariable(int index, LocalVariable localVariable);
 
 #endif
