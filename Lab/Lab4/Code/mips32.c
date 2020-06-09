@@ -7,6 +7,7 @@ void initBlock(){
 
     basic_block_head = (BasicBlock)malloc(sizeof(struct BasicBlock_t));
     basic_block_head->next = NULL;
+    basic_block_head->endLineNo = -1;
     basic_block_tail = basic_block_head;
 
     for(int i = 0; i < 32; ++i){
@@ -19,6 +20,8 @@ void initBlock(){
 
 LocalVariable newLocalVariable(Operand operand, int offset){
     LocalVariable result = (LocalVariable)malloc(sizeof(struct LocalVariable_t));
+    result->useList = (LineNo)malloc(sizeof(struct LineNo_t));
+    result->useList->next = NULL;
     result->offset = offset;
     result->operand = operand;
     result->regIndex = -1;
@@ -43,6 +46,7 @@ BasicBlock newBasicBlock(InterCode begin){
     result->begin = begin;
     result->end = NULL;
     result->next = NULL;
+    result->endLineNo = -1;
     return result;
 }
 
@@ -82,7 +86,7 @@ int equalOperand(Operand op1, Operand op2){
     return 0;
 }
 
-void addToStack(FunctionBlock functionBlock, Operand operand){
+void addToStack(FunctionBlock functionBlock, Operand operand, int lineNo){
     if(operand == NULL) return;
     enum OperandKind kind = operand->kind;
     if(kind != CONSTANT && kind != LABEL_OPERAND && kind != FUNCTION_OPERAND){
@@ -96,9 +100,20 @@ void addToStack(FunctionBlock functionBlock, Operand operand){
         if(cur == NULL){
             LocalVariable localVariable = newLocalVariable(operand, functionBlock->totalSize);
             insertLocalVariable(localVariable, functionBlock);
+            addUseLine(localVariable, lineNo);
             functionBlock->totalSize += 4;
         }
     }
+}
+
+void addUseLine(LocalVariable localVariable, int lineNo){
+    LineNo cur = localVariable->useList;
+    while(cur->next != NULL){
+        cur = cur->next;
+    }
+    cur->next = (LineNo)malloc(sizeof(struct LineNo_t));
+    cur->next->num = lineNo;
+    cur->next->next = NULL;
 }
 
 void translateToMisp32(char* output){
@@ -132,7 +147,7 @@ void printMips32Head(FILE* fp){
 }
 
 void blocking(){
-    int offset = 0;
+    int lineNo = 0;
     InterCode cur = inter_code_head->next;
     FunctionBlock curFunctionBlock = NULL;
     BasicBlock curBasicBlock = NULL;
@@ -146,6 +161,7 @@ void blocking(){
                 insertFunctionBlock(functionBlock);
                 curFunctionBlock = functionBlock;
                 curBasicBlock = basicBlock;
+                lineNo = 0;
                 break;
             }
             case LABEL_INTERCODE:{
@@ -163,49 +179,55 @@ void blocking(){
             case JBE:{
                 // 收尾
                 curBasicBlock->end = cur;
+                curBasicBlock->endLineNo = lineNo;
                 break;
             }
             case RETURN:{
                 // 函数和基本块收尾
                 curBasicBlock->end = cur;
+                curBasicBlock->endLineNo = lineNo;
                 curFunctionBlock->end = curBasicBlock;
                 break;
             }
             case ASSIGN:{
-                addToStack(curFunctionBlock, cur->op1);
-                addToStack(curFunctionBlock, cur->result);
+                addToStack(curFunctionBlock, cur->op1, lineNo);
+                addToStack(curFunctionBlock, cur->result, lineNo);
                 break;
             }
             case PLUS:
             case MINUS:
             case STAR:
             case DIV:{
-                addToStack(curFunctionBlock, cur->op1);
-                addToStack(curFunctionBlock, cur->op2);
-                addToStack(curFunctionBlock, cur->result);
+                addToStack(curFunctionBlock, cur->op1, lineNo);
+                addToStack(curFunctionBlock, cur->op2, lineNo);
+                addToStack(curFunctionBlock, cur->result, lineNo);
                 break;
             }
             case DEC:{
                 int decSize = cur->op2->u.const_value;
                 curFunctionBlock->totalSize += (decSize - 4);
-                addToStack(curFunctionBlock, cur->op1);
+                addToStack(curFunctionBlock, cur->op1, lineNo);
                 break;
             }
             case CALL:{
-                addToStack(curFunctionBlock, cur->op1);
-                addToStack(curFunctionBlock, cur->result);
+                addToStack(curFunctionBlock, cur->op1, lineNo);
+                addToStack(curFunctionBlock, cur->result, lineNo);
+                // 函数和基本块收尾
+                curBasicBlock->end = cur;
+                curBasicBlock->endLineNo = lineNo;
                 break;
             }
             case ARG:
             case READ:
             case WRITE:{
-                addToStack(curFunctionBlock, cur->result);
+                addToStack(curFunctionBlock, cur->result, lineNo);
                 break;
             }
         }
         if(cur->next != inter_code_head && cur->next->kind == LABEL_INTERCODE){
             // 收尾
             curBasicBlock->end = cur;
+            curBasicBlock->endLineNo = lineNo;
         }
         if(cur->prev != inter_code_head && cur->kind != LABEL_INTERCODE && cur->kind != FUNCTION_INTERCODE){
             // enum InterCodeKind kind = cur->prev->kind;
@@ -218,10 +240,12 @@ void blocking(){
                 curBasicBlock = basicBlock;
             }
         }
+        lineNo++;
+        cur = cur->next;
     }
 }
 
-char* getReg(Operand operand, FunctionBlock functionBlock, FILE* fp){
+char* getReg(FILE* fp, Operand operand, FunctionBlock functionBlock, BasicBlock basicBlock, int lineNo){
     if(operand->kind == CONSTANT){
         // 常数，放入寄存器
         for(int i = 8; i < 26; ++i){
@@ -232,7 +256,11 @@ char* getReg(Operand operand, FunctionBlock functionBlock, FILE* fp){
                 return regName[i];
             }
         }
-
+        // 无空寄存器
+        int index = overrideReg(fp, lineNo, basicBlock->endLineNo);
+        regDescriptor[index].isConst = 1;
+        fprintf(fp," li $%s, %d\n", regName[index], operand->u.const_value);
+        return regName[index];
     }else if(operand->kind == LABEL_OPERAND || operand->kind == FUNCTION_OPERAND){
         // t/v，存入寄存器
         LocalVariable operandVariable = findLocalVariable(operand, functionBlock);
@@ -249,10 +277,55 @@ char* getReg(Operand operand, FunctionBlock functionBlock, FILE* fp){
                     return regName[i];
                 }
             }
+            // 无空寄存器
+            int index = overrideReg(fp, lineNo, basicBlock->endLineNo);
+            regDescriptor[index].varList->regNext = operandVariable;
+            operandVariable->regIndex = index;
+            fprintf(fp," lw $%s, -%d($fp)\n", regName[index], operandVariable->offset);
+            return regName[index];
         }
-        
     }
-    
+}
+
+int overrideReg(FILE* fp, int curLineNo, int endLineNo){
+    int indexMax = 8;
+    int lineNoMax = -1;
+    for(int i = 8; i < 26; ++i){
+        int regDesMin = 0x7FFFFFFF;
+        if(regDescriptor[i].isConst == 1)   continue;
+        LocalVariable cur = regDescriptor[i].varList->regNext;
+        while(cur != NULL){
+            LineNo curLine = cur->useList->next;
+            while(curLine != NULL){
+                if(curLine->num > curLineNo && curLine->num <= endLineNo){
+                    // 每个寄存器找最小的
+                    regDesMin = (regDesMin>curLine->num)?curLine->num:regDesMin;
+                    break;
+                }
+                curLine = curLine->next;
+            }
+            cur = cur->regNext;
+        }
+        if(lineNoMax < regDesMin){
+            // 寄存器间找最大的
+            lineNoMax = regDesMin;
+            indexMax = i;
+        }
+    }
+    LocalVariable cur1 = regDescriptor[lineNoMax].varList->regNext;
+    while(cur1 != NULL){
+        // 修改地址描述符
+        cur1->regIndex = -1;
+        if(cur1->inMemory == 0){
+            fprintf(fp, "  sw $%s, -%d($fp)\n", regName[lineNoMax], cur1->offset);
+            cur1->inMemory = 1;
+        }
+        cur1 = cur1->regNext;
+    }
+    // 清空该寄存器
+    regDescriptor[lineNoMax].isConst = 0;
+    regDescriptor[lineNoMax].varList->regNext = NULL;
+    return lineNoMax;
 }
 
 LocalVariable findLocalVariable(Operand operand, FunctionBlock functionBlock){

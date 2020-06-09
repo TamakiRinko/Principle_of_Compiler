@@ -7,12 +7,19 @@ typedef struct FunctionBlock_t * FunctionBlock;
 typedef struct BasicBlock_t * BasicBlock;
 typedef struct LocalVariable_t * LocalVariable;
 typedef struct RegDescriptor_t * RegDescriptor;
+typedef struct LineNo_t * LineNo;
+
+struct LineNo_t{
+    int num;
+    LineNo next;
+};
 
 struct LocalVariable_t{
     Operand operand;
     int offset;                 // 在栈内的偏移量
     int inMemory;               // 是否在内存中
     int regIndex;               // 存在的寄存器下标
+    LineNo useList;
     LocalVariable next;
     LocalVariable regNext;
 };
@@ -20,6 +27,7 @@ struct LocalVariable_t{
 struct BasicBlock_t{
     InterCode begin;
     InterCode end;
+    int endLineNo;
     BasicBlock next;
 };
 
@@ -58,10 +66,12 @@ void insertLocalVariable(LocalVariable local, FunctionBlock functionBlock);
 void insertFunctionBlock(FunctionBlock functionBlock);
 void insertBasicBlock(BasicBlock basicBlock);
 
-void addToStack(FunctionBlock functionBlock, Operand operand);
+void addToStack(FunctionBlock functionBlock, Operand operand, int lineNo);
+void addUseLine(LocalVariable localVariable, int lineNo);
 int equalOperand(Operand op1, Operand op2);
 
-char* getReg(Operand operand, FunctionBlock functionBlock, FILE* fp);
+char* getReg(FILE* fp, Operand operand, FunctionBlock functionBlock, BasicBlock basicBlock, int lineNo);
+int overrideReg(FILE* fp, int curLineNo, int endLineNo);
 LocalVariable findLocalVariable(Operand operand, FunctionBlock functionBlock);
 
 #endif
