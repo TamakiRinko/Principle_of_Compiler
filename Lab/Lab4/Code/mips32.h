@@ -44,7 +44,7 @@ struct RegDescriptor_t{
     int isConst;
 };
 
-int indexArray[3];
+int indexArray[5];
 struct RegDescriptor_t regDescriptor[32];
 FunctionBlock function_block_head;
 FunctionBlock function_block_tail;
@@ -56,6 +56,7 @@ char* regName[32] = {"$zero", "$at", "$v0", "$v1", "$a0", "$a1", "$a2", "$a3", "
 
 void blocking();
 
+int getEmptyArrayIndex();
 
 int isFree(int index);
 void translateToMisp32(char* output);
@@ -73,6 +74,7 @@ void addUseLine(LocalVariable localVariable, int lineNo);
 int equalOperand(Operand op1, Operand op2);
 
 int getReg(FILE* fp, Operand operand, FunctionBlock functionBlock, BasicBlock basicBlock, int lineNo);
+int getRegForAllKind(FILE* fp, Operand operand, FunctionBlock functionBlock, BasicBlock basicBlock, int lineNo);
 int overrideReg(FILE* fp, int curLineNo, int endLineNo);
 void saveAllRegs(FILE* fp);
 LocalVariable findLocalVariable(Operand operand, FunctionBlock functionBlock);

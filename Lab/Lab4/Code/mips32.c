@@ -16,8 +16,16 @@ void initBlock(){
         regDescriptor[i].isConst = 0;
     }
 
-    indexArray[0] = indexArray[1] = indexArray[2] = -1;
+    indexArray[0] = indexArray[1] = indexArray[2] = indexArray[3] = indexArray[4] = -1;
 
+}
+
+int getEmptyArrayIndex(){
+    for(int i = 0; i < 5; ++i){
+        if(indexArray[i] == -1){
+            return i;
+        }
+    }
 }
 
 LocalVariable newLocalVariable(Operand operand, int offset){
@@ -219,6 +227,10 @@ void blocking(){
                 curBasicBlock->endLineNo = lineNo;
                 break;
             }
+            case PARAM:{
+                addToStack(curFunctionBlock, cur->op1, lineNo);
+                break;
+            }
             case ARG:
             case READ:
             case WRITE:{
@@ -276,7 +288,7 @@ int getReg(FILE* fp, Operand operand, FunctionBlock functionBlock, BasicBlock ba
         regDescriptor[index].isConst = 1;
         fprintf(fp," li %s, %d\n", regName[index], operand->u.const_value);
         return index;
-    }else if(operand->kind == LABEL_OPERAND || operand->kind == FUNCTION_OPERAND){
+    }else if(operand->kind != LABEL_OPERAND && operand->kind != FUNCTION_OPERAND){
         // t/v，存入寄存器
         LocalVariable operandVariable = findLocalVariable(operand, functionBlock);
         if(operandVariable->regIndex != -1){
@@ -299,6 +311,42 @@ int getReg(FILE* fp, Operand operand, FunctionBlock functionBlock, BasicBlock ba
             fprintf(fp," lw %s, -%d($fp)\n", regName[index], operandVariable->offset);
             return index;
         }
+    }
+}
+
+int getRegForAllKind(FILE* fp, Operand operand, FunctionBlock functionBlock, BasicBlock basicBlock, int lineNo){
+    if(operand == NULL){
+        int index = getReg(fp, operand, functionBlock, basicBlock, lineNo);
+        int x = getEmptyArrayIndex();
+        indexArray[x] = index;
+        return index;
+    }else if(operand->kind == ADDRESS || operand->kind == TEMPORARY_ADDRESS){
+        int index1 = getReg(fp, operand, functionBlock, basicBlock, lineNo);
+        int index2 = getReg(fp, NULL, functionBlock, basicBlock, lineNo);
+        // t = *x
+        fprintf(fp, "  lw %s, 0(%s)\n", regName[index2], regName[index1]);
+        int x1 = getEmptyArrayIndex();
+        indexArray[x1] = index1;
+        int x2 = getEmptyArrayIndex();
+        indexArray[x2] = index2;
+        return index2;
+    }else if(operand->kind == REFERENCE){
+        // 为立即数申请
+        int index1 = getReg(fp, NULL, functionBlock, basicBlock, lineNo);
+        // 为临时变量申请
+        int index2 = getReg(fp, NULL, functionBlock, basicBlock, lineNo);
+        // t = &x
+        fprintf(fp, "  addi %s, $fp, -%d\n", regName[index2], findLocalVariable(operand, functionBlock)->offset);
+        int x1 = getEmptyArrayIndex();
+        indexArray[x1] = index1;
+        int x2 = getEmptyArrayIndex();
+        indexArray[x2] = index2;
+        return index2;
+    }else{
+        int index = getReg(fp, operand, functionBlock, basicBlock, lineNo);
+        int x = getEmptyArrayIndex();
+        indexArray[x] = index;
+        return index;
     }
 }
 
@@ -389,9 +437,15 @@ void generateMips32(FILE* fp){
             while(curInterCode != curBasic->end->next){
                 switch(curInterCode->kind){
                     case LABEL_INTERCODE:{
+                        fprintf(fp, "  label%d:\n", curInterCode->op1->u.num);
                         break;
                     }
                     case FUNCTION_INTERCODE:{
+                        fprintf(fp, "  %s:\n", curInterCode->op1->u.name);
+                        fprintf(fp, "  addi $sp, $sp, -4\n");
+                        fprintf(fp, "  sw $fp, 0($sp)\n");
+                        fprintf(fp, "  move $fp, $sp\n");
+                        fprintf(fp, "  addi $sp, $sp, -%d\n", curFunction->totalSize);
                         break;
                     }
                     case ASSIGN:{
@@ -454,9 +508,9 @@ void generateMips32(FILE* fp){
                         break;
                     }
                     case PLUS:{
-                        int index0 = getReg(fp, curInterCode->result, curFunction, curBasic, lineNo);
-                        int index1 = getReg(fp, curInterCode->op1, curFunction, curBasic, lineNo);
-                        int index2 = getReg(fp, curInterCode->op2, curFunction, curBasic, lineNo);
+                        int index0 = getRegForAllKind(fp, curInterCode->result, curFunction, curBasic, lineNo);
+                        int index1 = getRegForAllKind(fp, curInterCode->op1, curFunction, curBasic, lineNo);
+                        int index2 = getRegForAllKind(fp, curInterCode->op2, curFunction, curBasic, lineNo);
                         if(curInterCode->op1->kind == CONSTANT){
                             fprintf(fp, "  addi %s, %s, %d\n", regName[index0], regName[index2], 
                                                            curInterCode->op1->u.const_value);
@@ -467,15 +521,13 @@ void generateMips32(FILE* fp){
                             fprintf(fp, "  add %s, %s, %s\n", regName[index0], regName[index1], 
                                                            regName[index2]);
                         }
-                        indexArray[0] = index0;
-                        indexArray[1] = index1;
-                        indexArray[2] = index2;
+                        findLocalVariable(curInterCode->result, curFunction)->inMemory = 0;
                         break;
                     }
                     case MINUS:{
-                        int index0 = getReg(fp, curInterCode->result, curFunction, curBasic, lineNo);
-                        int index1 = getReg(fp, curInterCode->op1, curFunction, curBasic, lineNo);
-                        int index2 = getReg(fp, curInterCode->op2, curFunction, curBasic, lineNo);
+                        int index0 = getRegForAllKind(fp, curInterCode->result, curFunction, curBasic, lineNo);
+                        int index1 = getRegForAllKind(fp, curInterCode->op1, curFunction, curBasic, lineNo);
+                        int index2 = getRegForAllKind(fp, curInterCode->op2, curFunction, curBasic, lineNo);
                         if(curInterCode->op2->kind == CONSTANT){
                             fprintf(fp, "  addi %s, %s, %d\n", regName[index0], regName[index1],
                                                            -curInterCode->op2->u.const_value);
@@ -483,31 +535,25 @@ void generateMips32(FILE* fp){
                             fprintf(fp, "  sub %s, %s, %s\n", regName[index0], regName[index1], 
                                                            regName[index2]);
                         }
-                        indexArray[0] = index0;
-                        indexArray[1] = index1;
-                        indexArray[2] = index2;
+                        findLocalVariable(curInterCode->result, curFunction)->inMemory = 0;
                         break;
                     }
                     case STAR:{
-                        int index0 = getReg(fp, curInterCode->result, curFunction, curBasic, lineNo);
-                        int index1 = getReg(fp, curInterCode->op1, curFunction, curBasic, lineNo);
-                        int index2 = getReg(fp, curInterCode->op2, curFunction, curBasic, lineNo);
+                        int index0 = getRegForAllKind(fp, curInterCode->result, curFunction, curBasic, lineNo);
+                        int index1 = getRegForAllKind(fp, curInterCode->op1, curFunction, curBasic, lineNo);
+                        int index2 = getRegForAllKind(fp, curInterCode->op2, curFunction, curBasic, lineNo);
                         fprintf(fp, "  mul %s, %s, %s\n", regName[index0], regName[index1], 
                                                            regName[index2]);
-                        indexArray[0] = index0;
-                        indexArray[1] = index1;
-                        indexArray[2] = index2;
+                        findLocalVariable(curInterCode->result, curFunction)->inMemory = 0;
                         break;
                     }
                     case DIV:{
-                        int index0 = getReg(fp, curInterCode->result, curFunction, curBasic, lineNo);
-                        int index1 = getReg(fp, curInterCode->op1, curFunction, curBasic, lineNo);
-                        int index2 = getReg(fp, curInterCode->op2, curFunction, curBasic, lineNo);
+                        int index0 = getRegForAllKind(fp, curInterCode->result, curFunction, curBasic, lineNo);
+                        int index1 = getRegForAllKind(fp, curInterCode->op1, curFunction, curBasic, lineNo);
+                        int index2 = getRegForAllKind(fp, curInterCode->op2, curFunction, curBasic, lineNo);
                         fprintf(fp, "  div %s, %s\n", regName[index1], regName[index2]);
                         fprintf(fp, "  mflo %s\n", regName[index0]);
-                        indexArray[0] = index0;
-                        indexArray[1] = index1;
-                        indexArray[2] = index2;
+                        findLocalVariable(curInterCode->result, curFunction)->inMemory = 0;
                         break;
                     }
                     case GOTO:{
@@ -569,6 +615,12 @@ void generateMips32(FILE* fp){
                         break;
                     }
                     case RETURN:{
+                        int index = getRegForAllKind(fp, curInterCode->op1, curFunction, curBasic, lineNo);
+                        fprintf(fp, "  move $v0, %s\n", regName[index]);
+                        fprintf(fp, "  move $sp, $fp\n");
+                        fprintf(fp, "  lw $fp, 0($sp)\n");
+                        fprintf(fp, "  addi $sp, $sp, 4\n");
+                        fprintf(fp, "  jr $ra\n");
                         break;
                     }
                     case DEC:{
@@ -578,15 +630,45 @@ void generateMips32(FILE* fp){
                         break;
                     }
                     case CALL:{
+                        InterCode cur = curInterCode->prev;
+                        int x = 12;
+                        while(cur->kind == ARG){
+                            int index1 = getRegForAllKind(fp, cur->op1, curFunction, curBasic, lineNo);
+                            fprintf(fp, "  sw %s, -%d($sp)\n", regName[index1], x);
+                            x = x + 4;
+                            freeRegs(fp, lineNo, curBasic);
+                            cur = cur->prev;
+                        }
+                        fprintf(fp, "  addi $sp, $sp, -4\n");
+                        fprintf(fp, "  sw $ra, 0($sp)\n");
+                        fprintf(fp, "  jal %s\n", curInterCode->op1->u.name);
+                        fprintf(fp, "  lw $ra, 0($sp)\n");
+                        fprintf(fp, "  addi $sp, $sp, 4\n");
+                        int resultIndex = getRegForAllKind(fp, cur->result, curFunction, curBasic, lineNo);
+                        fprintf(fp, "  move %s, $v0\n", regName[resultIndex]);
                         break;
                     }
                     case PARAM:{
                         break;
                     }
                     case READ:{
+                        fprintf(fp, "  addi $sp, $sp, -4\n");
+                        fprintf(fp, "  sw $ra, 0($sp)\n");
+                        fprintf(fp, "  jal read\n");
+                        fprintf(fp, "  lw $ra, 0($sp)\n");
+                        fprintf(fp, "  addi $sp, $sp, 4\n");
+                        int resultIndex = getRegForAllKind(fp, curInterCode->result, curFunction, curBasic, lineNo);
+                        fprintf(fp, "  move %s, $v0\n", regName[resultIndex]);
                         break;
                     }
                     case WRITE:{
+                        int paramIndex = getRegForAllKind(fp, curInterCode->result, curFunction, curBasic, lineNo);
+                        fprintf(fp, "  move $a0, %s\n", regName[paramIndex]);
+                        fprintf(fp, "  addi $sp, $sp, -4\n");
+                        fprintf(fp, "  sw $ra, 0($sp)\n");
+                        fprintf(fp, "  jal write\n");
+                        fprintf(fp, "  lw $ra, 0($sp)\n");
+                        fprintf(fp, "  addi $sp, $sp, 4\n");
                         break;
                     }
                     default: break;
@@ -605,7 +687,7 @@ void generateMips32(FILE* fp){
 
 void freeRegs(FILE* fp, int lineNo, BasicBlock curBasic){
     // Free reg
-    for(int i = 0; i < 3; ++i){
+    for(int i = 0; i < 5; ++i){
         if(indexArray[i] != -1){
             if(regDescriptor[indexArray[i]].isConst == 1){
                 // 常数可直接删去
