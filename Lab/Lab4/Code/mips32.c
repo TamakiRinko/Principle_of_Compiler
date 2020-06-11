@@ -808,6 +808,7 @@ FunctionBlock newFunctionBlock(BasicBlock begin){
     FunctionBlock result = (FunctionBlock)malloc(sizeof(struct FunctionBlock_t));
     result->begin = begin;
     result->varList = (LocalVariable)malloc(sizeof(struct LocalVariable_t));
+    result->varList->next = NULL;
     result->totalSize = 4;      // 腾出４字节存储旧的ebp
     result->end = NULL;
     result->next = NULL;
