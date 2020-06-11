@@ -3,6 +3,8 @@
 
 #include "ir.h"
 
+#define print_lab_4
+
 typedef struct FunctionBlock_t * FunctionBlock;
 typedef struct BasicBlock_t * BasicBlock;
 typedef struct LocalVariable_t * LocalVariable;
@@ -51,9 +53,6 @@ FunctionBlock function_block_tail;
 BasicBlock basic_block_head;
 BasicBlock basic_block_tail;
 
-char* regName[32] = {"$zero", "$at", "$v0", "$v1", "$a0", "$a1", "$a2", "$a3", "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7", 
-                     "$s0", "$s1", "$s2", "$s3", "$s4", "$s5", "$s6", "$s7", "$t8", "$t9", "$k0", "$k1", "$gp", "$sp", "$fp", "$ra"};
-
 void blocking();
 
 int getEmptyArrayIndex();
@@ -61,6 +60,7 @@ int getEmptyArrayIndex();
 int isFree(int index);
 void translateToMisp32(char* output);
 void initBlock();
+void printMips32Head(FILE* fp);
 void generateMips32(FILE* fp);
 LocalVariable newLocalVariable(Operand operand, int offset);
 FunctionBlock newFunctionBlock(BasicBlock begin);
@@ -81,5 +81,7 @@ LocalVariable findLocalVariable(Operand operand, FunctionBlock functionBlock);
 void freeRegs(FILE* fp, int lineNo, BasicBlock curBasic);
 
 void freeVariable(int index, LocalVariable localVariable);
+void printOneInterCode(FILE* fp, InterCode cur);
+void printOneOperand(FILE* fp, Operand operand);
 
 #endif
