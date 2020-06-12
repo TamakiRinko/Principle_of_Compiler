@@ -826,10 +826,6 @@ void generateMips32(FILE* fp){
                         InterCode cur = curInterCode->prev;
                         int x = 12;
                         while(cur->kind == ARG){
-                            // printf("======\n");
-                            // printOneInterCode(fp, cur);
-                            // printf("%d\n", findLocalVariable(cur->result, curFunction)->inMemory);
-                            // printf("======\n");
                             int index1 = getRegForAllKind(fp, cur->result, curFunction, curBasic, lineNo);
                             // printf("  sw %s, -%d($sp)  in CALL1\n", regName[index1], x);
                             fprintf(fp, "  sw %s, -%d($sp)\n", regName[index1], x);
