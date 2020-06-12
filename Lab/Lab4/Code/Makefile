@@ -34,7 +34,28 @@ syntax-c: $(YFILE)
 # 定义的一些伪目标
 .PHONY: clean test
 test:
-	./parser ../Test/Tests/A_2.cmm
+	./parser ../Test/Tests/A_1.cmm ../Result/oldA_1.s
+	./parser ../Test/Tests/A_2.cmm ../Result/oldA_2.s
+	./parser ../Test/Tests/A_3.cmm ../Result/oldA_3.s
+	./parser ../Test/Tests/A_4.cmm ../Result/oldA_4.s
+	./parser ../Test/Tests/A_5.cmm ../Result/oldA_5.s
+	./parser ../Test/Tests/B_1.cmm ../Result/oldB_1.s
+	./parser ../Test/Tests/B_2.cmm ../Result/oldB_2.s
+	./parser ../Test/Tests/B_3.cmm ../Result/oldB_3.s
+	./parser ../Test/Tests/C_1.cmm ../Result/oldC_1.s
+	./parser ../Test/Tests/C_2.cmm ../Result/oldC_2.s
+	./parser ../Test/Tests/D_1.cmm ../Result/oldD_1.s
+	./parser ../Test/Tests2/A_1.cmm ../Result/newA_1.s
+	./parser ../Test/Tests2/A_2.cmm ../Result/newA_2.s
+	./parser ../Test/Tests2/A_3.cmm ../Result/newA_3.s
+	./parser ../Test/Tests2/A_4.cmm ../Result/newA_4.s
+	./parser ../Test/Tests2/A_5.cmm ../Result/newA_5.s
+	./parser ../Test/Tests2/B_1.cmm ../Result/newB_1.s
+	./parser ../Test/Tests2/B_2.cmm ../Result/newB_2.s
+	./parser ../Test/Tests2/B_3.cmm ../Result/newB_3.s
+	./parser ../Test/Tests2/C_1.cmm ../Result/newC_1.s
+	./parser ../Test/Tests2/C_2.cmm ../Result/newC_2.s
+	./parser ../Test/Tests2/D_1.cmm ../Result/newD_1.s
 
 	
 clean:

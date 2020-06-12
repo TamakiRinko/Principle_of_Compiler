@@ -1238,9 +1238,9 @@ PointToOperand IRArgs(treeNode* parent){
 
 
 void irOptimise(){
-    computeConstant();
-    replaceTempAssignConstant();
-    reverseIf();
+    // computeConstant();
+    // replaceTempAssignConstant();
+    // reverseIf();
 }
 
 // 加减乘除中的常数直接结算

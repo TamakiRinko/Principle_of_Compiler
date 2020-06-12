@@ -48,7 +48,7 @@ power:
   addi $sp, $sp, -4
   sw $fp, 0($sp)
   move $fp, $sp
-  addi $sp, $sp, -52
+  addi $sp, $sp, -56
   lw $t0, -12($fp)
   li $t1, 1
   lw $t2, -8($fp)
@@ -81,26 +81,32 @@ label1:
   sw $t1, -36($fp)
   lw $t0, -8($fp)
   lw $t1, -40($fp)
-  ble $t0, $t1, label3
+  bgt $t0, $t1, label2
+  j label3
+label2:
   lw $t0, -20($fp)
   lw $t1, -4($fp)
   mul $t0, $t0, $t1
   sw $t0, -20($fp)
   lw $t0, -44($fp)
   li $t1, 2
-  lw $t2, -8($fp)
+  li $t2, 1
   mul $t0, $t1, $t2
   lw $t1, -48($fp)
-  li $t3, 1
-  mul $t1, $t3, $t2
-  lw $t3, -52($fp)
-  sub $t3, $t0, $t1
+  lw $t2, -8($fp)
+  mul $t1, $t0, $t2
   sw $t0, -44($fp)
+  lw $t0, -52($fp)
+  li $t3, 1
+  mul $t0, $t3, $t2
+  lw $t3, -56($fp)
+  sub $t3, $t1, $t0
   sw $t1, -48($fp)
+  sw $t0, -52($fp)
   li $t0, 1
   addi $t2, $t3, -1
   sw $t2, -8($fp)
-  sw $t3, -52($fp)
+  sw $t3, -56($fp)
   j label1
 label3:
   lw $t0, -20($fp)
@@ -113,24 +119,32 @@ getNumDigits:
   addi $sp, $sp, -4
   sw $fp, 0($sp)
   move $fp, $sp
-  addi $sp, $sp, -8
+  addi $sp, $sp, -12
   lw $t0, -8($fp)
   li $t0, 0
   sw $t0, -8($fp)
   lw $t0, -4($fp)
   li $t1, 0
-  bge $t0, $t1, label5
-  li $t0, -1
+  blt $t0, $t1, label4
+  j label5
+label4:
+  lw $t0, -12($fp)
+  li $t1, 0
+  li $t2, 1
+  addi $t0, $t1, -1
   move $v0, $t0
   move $sp, $fp
   lw $fp, 0($sp)
   addi $sp, $sp, 4
   jr $ra
+  sw $t0, -12($fp)
 label5:
 label6:
   lw $t0, -4($fp)
   li $t1, 0
-  ble $t0, $t1, label8
+  bgt $t0, $t1, label7
+  j label8
+label7:
   lw $t0, -4($fp)
   li $t1, 10
   div $t0, $t1
@@ -185,7 +199,9 @@ isNarcissistic:
 label9:
   lw $t0, -28($fp)
   li $t1, 0
-  ble $t0, $t1, label11
+  bgt $t0, $t1, label10
+  j label11
+label10:
   lw $t0, -28($fp)
   sw $t0, -12($sp)
   li $t0, 10
@@ -226,7 +242,9 @@ label9:
 label11:
   lw $t0, -24($fp)
   lw $t1, -4($fp)
-  bne $t0, $t1, label13
+  beq $t0, $t1, label12
+  j label13
+label12:
   li $t0, 1
   move $v0, $t0
   move $sp, $fp
@@ -256,7 +274,9 @@ main:
 label15:
   lw $t0, -8($fp)
   li $t1, 500
-  bge $t0, $t1, label17
+  blt $t0, $t1, label16
+  j label17
+label16:
   lw $t0, -8($fp)
   sw $t0, -12($sp)
   addi $sp, $sp, -4
@@ -269,7 +289,9 @@ label15:
   sw $t0, -12($fp)
   lw $t0, -12($fp)
   li $t1, 1
-  bne $t0, $t1, label19
+  beq $t0, $t1, label18
+  j label19
+label18:
   lw $t0, -8($fp)
   move $a0, $t0
   addi $sp, $sp, -4
