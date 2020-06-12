@@ -317,6 +317,10 @@ void blocking(){
     }
     if(curFunctionBlock != NULL && curBasicBlock != NULL){
         // 函数收尾
+        if(curBasicBlock->end == NULL){
+            curBasicBlock->end = cur->prev;
+            curBasicBlock->endLineNo = lineNo - 1;
+        }
         curFunctionBlock->end = curBasicBlock;
     }
     
@@ -470,24 +474,28 @@ int overrideReg(FILE* fp, int curLineNo, int endLineNo){
             indexMax = i;
         }
     }
-    LocalVariable cur1 = regDescriptor[lineNoMax].varList->regNext;
+    LocalVariable cur1 = regDescriptor[indexMax].varList->regNext;
     while(cur1 != NULL){
         // 修改地址描述符
         cur1->regIndex = -1;
         if(cur1->inMemory == 0){
-            // printf("  sw %s, -%d($fp)  in override\n", regName[lineNoMax], cur1->offset);
-            fprintf(fp, "  sw %s, -%d($fp)\n", regName[lineNoMax], cur1->offset);
+            // printf("  sw %s, -%d($fp)  in override\n", regName[indexMax], cur1->offset);
+            fprintf(fp, "  sw %s, -%d($fp)\n", regName[indexMax], cur1->offset);
 #ifndef print_lab_4
-            printf("  sw %s, -%d($fp)\n", regName[lineNoMax], cur1->offset);
+            printf("  sw %s, -%d($fp)\n", regName[indexMax], cur1->offset);
 #endif
             cur1->inMemory = 1;
+            LocalVariable temp = cur1->regNext;
+            cur1->regNext = NULL;
+            cur1 = temp;
+        }else{
+            cur1 = cur1->regNext;
         }
-        cur1 = cur1->regNext;
     }
     // 清空该寄存器
-    regDescriptor[lineNoMax].isConst = 0;
-    regDescriptor[lineNoMax].varList->regNext = NULL;
-    return lineNoMax;
+    regDescriptor[indexMax].isConst = 0;
+    regDescriptor[indexMax].varList->regNext = NULL;
+    return indexMax;
 }
 
 LocalVariable findLocalVariable(Operand operand, FunctionBlock functionBlock){

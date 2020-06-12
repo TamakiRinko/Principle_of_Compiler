@@ -428,7 +428,7 @@ void IRProgram(treeNode* root){
     IRExtDefList(root->firstChild);
     changed = 0;
     // irOptimise();
-    printInterCode();
+    // printInterCode();
 }
 
 void IRExtDefList(treeNode* parent){
